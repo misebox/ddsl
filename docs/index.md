@@ -65,7 +65,8 @@ COMMENT ON TABLE users IS 'ユーザー';
 | `override` / `except` | mixin の一部だけを差し替える・外す |
 | `blueprint` | 複数テーブルにまたがる構造を定義する。`let` でテーブル名を束縛する |
 | `belongs_to` / `associate` | FK と中間テーブルを生成する |
-| `entities` | 単数形・複数形・コメントの辞書。テーブル名と FK 列名の元になる |
+| `has_many` / `has_one` | 逆参照に名前を付ける。DDL には出ない |
+| `words` | 単数形・複数形・コメントの辞書。テーブル名・FK列名・関連名の元になる |
 | `naming` / `constraints` | 命名規則と制約の既定値 |
 
 ## 構文の原則

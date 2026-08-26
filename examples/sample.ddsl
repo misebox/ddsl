@@ -16,7 +16,7 @@ constraints {
   foreign_key_index = true
 }
 
-entities {
+words {
   user       users       "ユーザー"
   category   categories  "商品カテゴリ"
   product    products    "商品"
@@ -72,6 +72,8 @@ table user comment="ユーザー" {
   use base
   column email type=text comment="ログインID"
   column name  type=text
+  has_many post
+  has_one profile
 
   index email unique
 }

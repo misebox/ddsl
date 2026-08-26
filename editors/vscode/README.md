@@ -17,6 +17,6 @@ cd editors/vscode && npm install && npm run compile
 |---|---|
 | 診断 | 保存前でも構文エラー・解決エラーを表示 |
 | 定義へ移動 | `use` → mixin、`belongs_to` → table、`apply_blueprint` → blueprint |
-| ホバー | entity から解決されるテーブル名を表示 |
+| ホバー | 語から解決されるテーブル名を表示 |
 | アウトライン | table / mixin / blueprint |
-| 補完 | キーワード・属性キー・型名・mixin名・entity名 |
+| 補完 | キーワード・属性キー・型名・mixin名・語 |

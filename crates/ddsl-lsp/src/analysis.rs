@@ -5,7 +5,7 @@ use ddsl_core::span::Span;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Reference {
     Mixin(String),
-    Entity(String),
+    Word(String),
     Blueprint(String),
 }
 
@@ -37,7 +37,7 @@ pub fn reference_at(doc: &Document, offset: usize) -> Option<(Reference, Span)> 
             let r = if call.name.value == "apply_blueprint" && i == 0 {
                 Reference::Blueprint(arg.value.clone())
             } else {
-                Reference::Entity(arg.value.clone())
+                Reference::Word(arg.value.clone())
             };
             return Some((r, arg.span));
         }
@@ -52,7 +52,7 @@ fn member_reference(
     for m in members {
         let (name, make): (_, fn(String) -> Reference) = match &m.value {
             ast::Member::Use(n) => (n, Reference::Mixin),
-            ast::Member::BelongsTo(n) | ast::Member::UniqueBelongsTo(n) => (n, Reference::Entity),
+            ast::Member::Relation(r) => (&r.target, Reference::Word),
             _ => continue,
         };
         if contains(name.span, offset) {
@@ -74,13 +74,13 @@ pub fn definition_span(doc: &Document, r: &Reference) -> Option<Span> {
             .iter()
             .find(|b| &b.name.value == name)
             .map(|b| b.name.span),
-        Reference::Entity(name) => doc
+        Reference::Word(name) => doc
             .tables
             .iter()
             .find(|t| &t.name.value == name)
             .map(|t| t.name.span)
             .or_else(|| {
-                doc.entities.as_ref().and_then(|e| {
+                doc.words.as_ref().and_then(|e| {
                     e.entries
                         .iter()
                         .find(|x| &x.singular.value == name)

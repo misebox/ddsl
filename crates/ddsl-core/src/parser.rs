@@ -20,6 +20,7 @@ struct Bail;
 type PResult<T> = Result<T, Bail>;
 
 const ATTR_KEYS: &[&str] = &["type", "null", "default", "on_update", "comment"];
+const RELATION_KEYS: &[&str] = &["fk", "alias", "via"];
 const VALUE_FNS: &[&str] = &["name_join", "singular", "plural"];
 
 struct Parser {
@@ -202,16 +203,16 @@ impl Parser {
                 }
                 Ok(())
             }
-            "entities" => {
-                let block = self.entities_block()?;
-                if let Some(prev) = &doc.entities {
+            "words" => {
+                let block = self.words_block()?;
+                if let Some(prev) = &doc.words {
                     let prev_span = prev.span;
                     self.diags.push(
-                        Diagnostic::error(block.span, "`entities` ブロックが重複している")
+                        Diagnostic::error(block.span, "`words` ブロックが重複している")
                             .with_label(prev_span, "最初の定義"),
                     );
                 } else {
-                    doc.entities = Some(block);
+                    doc.words = Some(block);
                 }
                 Ok(())
             }
@@ -282,8 +283,8 @@ impl Parser {
         Ok(Assign { key, value })
     }
 
-    fn entities_block(&mut self) -> PResult<EntitiesBlock> {
-        let start = self.expect_ident("`entities`")?.span;
+    fn words_block(&mut self) -> PResult<WordsBlock> {
+        let start = self.expect_ident("`words`")?.span;
         if self.expect(Tok::LBrace).is_err() {
             self.recover_block();
             return Err(Bail);
@@ -294,7 +295,7 @@ impl Parser {
             if self.at(&Tok::RBrace) || self.at(&Tok::Eof) {
                 break;
             }
-            match self.entity() {
+            match self.word() {
                 Ok(e) => {
                     entries.push(e);
                     if self.end_of_statement().is_err() {
@@ -305,20 +306,20 @@ impl Parser {
             }
         }
         let end = self.expect(Tok::RBrace).unwrap_or(self.prev_span());
-        Ok(EntitiesBlock {
+        Ok(WordsBlock {
             entries,
             span: start.join(end),
         })
     }
 
-    fn entity(&mut self) -> PResult<Entity> {
+    fn word(&mut self) -> PResult<Word> {
         let singular = self.expect_ident("単数形")?;
         let plural = self.expect_ident("複数形")?;
         let comment = match self.peek() {
             Tok::Str(_) => Some(self.expect_string("コメント")?),
             _ => None,
         };
-        Ok(Entity {
+        Ok(Word {
             singular,
             plural,
             comment,
@@ -441,19 +442,73 @@ impl Parser {
                     Ok(Member::Except(self.name_list("カラム名")?))
                 }
             }
-            "belongs_to" => {
-                self.bump();
-                Ok(Member::BelongsTo(self.expect_ident("参照先")?))
-            }
-            "unique_belongs_to" => {
-                self.bump();
-                Ok(Member::UniqueBelongsTo(self.expect_ident("参照先")?))
-            }
+            "belongs_to" => self.relation(RelationKind::BelongsTo),
+            "unique_belongs_to" => self.relation(RelationKind::UniqueBelongsTo),
+            "has_many" => self.relation(RelationKind::HasMany),
+            "has_one" => self.relation(RelationKind::HasOne),
             other => {
                 let span = self.span();
                 Err(self.error(span, format!("宣言文にならないキーワード `{other}`")))
             }
         }
+    }
+
+    fn relation(&mut self, kind: RelationKind) -> PResult<Member> {
+        self.bump();
+        let target = self.expect_ident("参照先の語")?;
+        let mut rel = Relation {
+            kind,
+            target,
+            fk: None,
+            alias: None,
+            via: None,
+        };
+        while let Tok::Ident(key) = self.peek().clone() {
+            if *self.peek_at(1) != Tok::Eq {
+                break;
+            }
+            let key_span = self.span();
+            self.bump();
+            self.bump();
+            if !RELATION_KEYS.contains(&key.as_str()) {
+                self.diags.push(Diagnostic::error(
+                    key_span,
+                    format!(
+                        "`{}` に書けない属性キー `{key}`。使えるのは {}",
+                        kind.keyword(),
+                        RELATION_KEYS.join(" / ")
+                    ),
+                ));
+            }
+            let value = self.expect_string("名前（文字列）")?;
+            let slot = match key.as_str() {
+                "fk" => &mut rel.fk,
+                "alias" => &mut rel.alias,
+                _ => &mut rel.via,
+            };
+            if slot.is_some() {
+                self.diags.push(Diagnostic::error(
+                    key_span,
+                    format!("`{key}` が重複している"),
+                ));
+            }
+            *slot = Some(value);
+        }
+        if rel.fk.is_some() && !kind.owns_fk() {
+            let span = rel.fk.as_ref().map(|f| f.span).unwrap_or(rel.target.span);
+            self.diags.push(Diagnostic::error(
+                span,
+                format!("`{}` に `fk=` は書けない", kind.keyword()),
+            ));
+        }
+        if rel.via.is_some() && kind.owns_fk() {
+            let span = rel.via.as_ref().map(|v| v.span).unwrap_or(rel.target.span);
+            self.diags.push(Diagnostic::error(
+                span,
+                format!("`{}` に `via=` は書けない", kind.keyword()),
+            ));
+        }
+        Ok(Member::Relation(rel))
     }
 
     fn attrs(&mut self) -> PResult<Vec<Attr>> {

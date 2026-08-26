@@ -50,6 +50,8 @@ pub struct Index {
 
 #[derive(Debug, Clone)]
 pub struct ForeignKey {
+    /// FKを持つ側の関連名。DDL には出ない。
+    pub alias: String,
     pub columns: Vec<String>,
     pub ref_table: String,
     pub ref_columns: Vec<String>,
@@ -58,17 +60,31 @@ pub struct ForeignKey {
     pub span: Span,
 }
 
+/// 参照される側から見た関連。DDL には出ない。
+#[derive(Debug, Clone)]
+pub struct Reverse {
+    pub alias: String,
+    /// FKを持つテーブル。
+    pub from_table: String,
+    /// 対応するFK列。
+    pub via: Vec<String>,
+    /// one_to_one か。
+    pub unique: bool,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone)]
 pub struct Table {
     /// 最終テーブル名。
     pub name: String,
-    /// 由来した entity 名（単数形）。生成テーブルでは None。
-    pub entity: Option<String>,
+    /// 由来した語（単数形）。生成テーブルでは None。
+    pub word: Option<String>,
     pub comment: Option<String>,
     pub columns: IndexMap<String, Column>,
     pub pk: Vec<String>,
     pub indexes: Vec<Index>,
     pub foreign_keys: Vec<ForeignKey>,
+    pub reverses: Vec<Reverse>,
     pub origin: Origin,
     pub span: Span,
 }
@@ -83,9 +99,7 @@ impl Schema {
         self.tables.iter().find(|t| t.name == name)
     }
 
-    pub fn table_by_entity(&self, entity: &str) -> Option<&Table> {
-        self.tables
-            .iter()
-            .find(|t| t.entity.as_deref() == Some(entity))
+    pub fn table_by_word(&self, word: &str) -> Option<&Table> {
+        self.tables.iter().find(|t| t.word.as_deref() == Some(word))
     }
 }

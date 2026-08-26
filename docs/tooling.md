@@ -32,9 +32,9 @@ error: 知らない属性キー `foo`。使えるのは type / null / default / 
 |---|---|
 | 診断 | 保存前に構文エラー・解決エラー・警告を出す |
 | 定義へ移動 | `use` → mixin、`belongs_to` → table、`apply_blueprint` → blueprint |
-| ホバー | entity から解決されるテーブル名 |
+| ホバー | 語から解決されるテーブル名 |
 | アウトライン | table / mixin / blueprint |
-| 補完 | キーワード・属性キー・型名・mixin 名・entity 名 |
+| 補完 | キーワード・属性キー・型名・mixin 名・語 |
 
 ```
 cargo install --path crates/ddsl-lsp

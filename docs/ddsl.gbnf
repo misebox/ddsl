@@ -6,7 +6,7 @@ root ::= nls? (item (nls item)*)? nls?
 item ::=
       naming-block
     | constraints-block
-    | entities-block
+    | words-block
     | mixin-block
     | blueprint-block
     | table-block
@@ -20,8 +20,8 @@ constraints-block ::= "constraints" sp "{" nls (assign nls)* "}"
 
 assign ::= sp ident sp "=" sp value
 
-entities-block ::= "entities" sp "{" nls (entity nls)* "}"
-entity ::= sp ident sp1 ident sp1 string
+words-block ::= "words" sp "{" nls (word nls)* "}"
+word ::= sp ident sp1 ident sp1 string
 
 # ---------- mixin ----------
 
@@ -41,6 +41,8 @@ member ::= sp (
     | except-stmt
     | unique-belongs-to-stmt
     | belongs-to-stmt
+    | has-many-stmt
+    | has-one-stmt
     )
 
 column-stmt ::= "column" sp1 ident (sp1 attr)*
@@ -50,8 +52,13 @@ use-stmt ::= "use" sp1 ident
 override-stmt ::= "override" sp1 ident (sp1 attr)+
 except-index-stmt ::= "except" sp1 "index" sp1 col-list
 except-stmt ::= "except" sp1 name-list
-belongs-to-stmt ::= "belongs_to" sp1 ident
-unique-belongs-to-stmt ::= "unique_belongs_to" sp1 ident
+belongs-to-stmt ::= "belongs_to" sp1 ident (sp1 rel-attr)*
+unique-belongs-to-stmt ::= "unique_belongs_to" sp1 ident (sp1 rel-attr)*
+has-many-stmt ::= "has_many" sp1 ident (sp1 rel-attr)*
+has-one-stmt ::= "has_one" sp1 ident (sp1 rel-attr)*
+
+rel-attr ::= rel-key sp "=" sp (string | fn-call)
+rel-key ::= "fk" | "alias" | "via"
 
 attr ::= attr-key sp "=" sp value
 attr-key ::= "type" | "null" | "default" | "on_update" | "comment"
