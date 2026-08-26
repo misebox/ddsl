@@ -373,41 +373,51 @@ tbody tr:hover { background: var(--code-bg); }
   gap: 0.75rem;
 }
 
-/* サンプルは畳まず一覧で見せる */
+/* サンプルは畳まず縦に並べる。説明を読んで選べるようにする。 */
 .pg-samples {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .pg-sample {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  align-items: baseline;
+  gap: 0.9rem;
   text-align: left;
   font: inherit;
-  padding: 0.55rem 0.75rem;
+  padding: 0.5rem 0.9rem;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
   cursor: pointer;
 }
-.pg-sample:hover { border-color: var(--muted); }
+.pg-sample:last-child { border-bottom: 0; }
+.pg-sample:hover { background: var(--code-bg); }
 .pg-sample.is-on {
-  border-color: var(--accent);
   background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .pg-sample-label {
+  flex: none;
+  min-width: 6rem;
   font-size: 0.88rem;
   font-weight: 600;
   color: var(--ink);
 }
 
 .pg-sample-note {
-  font-size: 0.72rem;
-  line-height: 1.4;
+  font-size: 0.78rem;
+  line-height: 1.5;
   color: var(--muted);
+}
+
+@media (max-width: 34rem) {
+  .pg-sample { flex-direction: column; gap: 0.1rem; }
+  .pg-sample-label { min-width: 0; }
 }
 
 .pg-bar {
