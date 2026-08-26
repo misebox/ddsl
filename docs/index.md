@@ -1,8 +1,8 @@
 # DDSL
 
-**DDSL is a DSL.**
+**DDSL is a DSL for database schema design.**
 
-展開すると *Data Definition Schema Language is a Domain Specific Language* になる。再帰頭字語。
+*Data Definition Schema Language*
 
 スキーマ定義を書くと PostgreSQL の DDL が出る。
 
