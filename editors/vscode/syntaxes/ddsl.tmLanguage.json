@@ -31,7 +31,7 @@
           }
         },
         {
-          "match": "^\\s*\\b(naming|constraints|entities)\\b",
+          "match": "^\\s*\\b(naming|constraints|words)\\b",
           "name": "keyword.control.ddsl"
         }
       ]
@@ -46,7 +46,7 @@
           }
         },
         {
-          "match": "^\\s*\\b(use|belongs_to|unique_belongs_to)\\b\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "^\\s*\\b(use|belongs_to|unique_belongs_to|has_many|has_one)\\b\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.other.ddsl" },
             "2": { "name": "entity.name.type.ddsl" }
@@ -74,7 +74,7 @@
       "name": "support.function.ddsl"
     },
     "attribute": {
-      "match": "\\b(type|null|default|on_update|comment)\\b(?=\\s*=)",
+      "match": "\\b(type|null|default|on_update|comment|fk|alias|via)\\b(?=\\s*=)",
       "name": "entity.other.attribute-name.ddsl"
     },
     "config-key": {

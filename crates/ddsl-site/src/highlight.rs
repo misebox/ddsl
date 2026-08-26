@@ -6,7 +6,7 @@ const BLOCK_KEYWORDS: &[&str] = &[
     "blueprint",
     "naming",
     "constraints",
-    "entities",
+    "words",
 ];
 
 const STATEMENT_KEYWORDS: &[&str] = &[
@@ -18,6 +18,8 @@ const STATEMENT_KEYWORDS: &[&str] = &[
     "except",
     "belongs_to",
     "unique_belongs_to",
+    "has_many",
+    "has_one",
     "let",
     "unique",
 ];
@@ -30,6 +32,8 @@ const NAMES_A_TYPE: &[&str] = &[
     "use",
     "belongs_to",
     "unique_belongs_to",
+    "has_many",
+    "has_one",
 ];
 
 const MACROS: &[&str] = &["associate", "apply_blueprint"];

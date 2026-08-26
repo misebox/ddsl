@@ -14,7 +14,7 @@ use crate::template::{Seg, Template};
 pub fn resolve(doc: &Document, dialect: Dialect) -> (ir::Schema, Vec<Diagnostic>) {
     let mut diags = Vec::new();
     let config = Config::from_document(doc, &mut diags);
-    let dict = Dict::from_block(doc.entities.as_ref());
+    let dict = Dict::from_block(doc.words.as_ref());
     let mut r = Resolver {
         doc,
         dialect,
@@ -31,8 +31,8 @@ pub fn resolve(doc: &Document, dialect: Dialect) -> (ir::Schema, Vec<Diagnostic>
 /// blueprint 内の識別子が指すもの。
 #[derive(Debug, Clone)]
 enum Bound {
-    /// 仮引数に渡された entity。
-    Entity(String),
+    /// 仮引数に渡された語。
+    Word(String),
     /// `let` で束縛された最終テーブル名。
     Table(String),
 }
@@ -41,7 +41,7 @@ enum Bound {
 struct Pending<'a> {
     ast: &'a ast::Table,
     name: String,
-    entity: Option<String>,
+    word: Option<String>,
     scope: HashMap<String, Bound>,
     origin: ir::Origin,
 }
@@ -64,13 +64,16 @@ impl<'a> Resolver<'a> {
         // 名前解決を先に済ませる。belongs_to が参照先のPKを引けるようにするため。
         let mut schema = ir::Schema::default();
         let mut relations: Vec<Vec<RelationSpec>> = Vec::new();
+        let mut reverses: Vec<Vec<ast::Relation>> = Vec::new();
         for p in &pendings {
-            let (table, rels) = self.build_table(p);
+            let (table, rels, revs) = self.build_table(p);
             schema.tables.push(table);
             relations.push(rels);
+            reverses.push(revs);
         }
         self.attach_relations(&pendings, &relations, &mut schema);
         self.expand_associates(&mut schema);
+        self.attach_reverses(&pendings, &reverses, &mut schema);
         self.name_indexes(&mut schema);
         schema
     }
@@ -101,17 +104,17 @@ impl<'a> Resolver<'a> {
     fn collect_pending(&mut self) -> Vec<Pending<'a>> {
         let mut pendings = Vec::new();
         for t in &self.doc.tables {
-            let entity = t.name.value.clone();
-            if self.dict.get(&entity).is_none() {
+            let word = t.name.value.clone();
+            if self.dict.get(&word).is_none() {
                 self.diags.push(Diagnostic::warning(
                     t.name.span,
-                    format!("`{entity}` が `entities` に無い。規則変化で解決する"),
+                    format!("`{word}` が `words` に無い。規則変化で解決する"),
                 ));
             }
             pendings.push(Pending {
                 ast: t,
-                name: self.table_name_for(&entity),
-                entity: Some(entity),
+                name: self.table_name_for(&word),
+                word: Some(word),
                 scope: HashMap::new(),
                 origin: ir::Origin::Own,
             });
@@ -120,10 +123,10 @@ impl<'a> Resolver<'a> {
         pendings
     }
 
-    fn table_name_for(&self, entity: &str) -> String {
+    fn table_name_for(&self, word: &str) -> String {
         match self.config.naming.table_name {
-            TableNameStyle::Plural => self.dict.plural(entity).into_value(),
-            TableNameStyle::Singular => entity.to_string(),
+            TableNameStyle::Plural => self.dict.plural(word).into_value(),
+            TableNameStyle::Singular => word.to_string(),
         }
     }
 
@@ -172,11 +175,11 @@ impl<'a> Resolver<'a> {
                 if self.dict.get(&arg.value).is_none() {
                     self.diags.push(Diagnostic::warning(
                         arg.span,
-                        format!("`{}` が `entities` に無い", arg.value),
+                        format!("`{}` が `words` に無い", arg.value),
                     ));
                 }
                 self.check_shadowing(param);
-                scope.insert(param.value.clone(), Bound::Entity(arg.value.clone()));
+                scope.insert(param.value.clone(), Bound::Word(arg.value.clone()));
             }
 
             for item in &bp.items {
@@ -198,7 +201,7 @@ impl<'a> Resolver<'a> {
                     ast::BlueprintItem::Table(t) => {
                         let name = match scope.get(&t.name.value) {
                             Some(Bound::Table(n)) => n.clone(),
-                            Some(Bound::Entity(e)) => self.table_name_for(e),
+                            Some(Bound::Word(e)) => self.table_name_for(e),
                             None => {
                                 self.diags.push(Diagnostic::error(
                                     t.name.span,
@@ -210,7 +213,7 @@ impl<'a> Resolver<'a> {
                         out.push(Pending {
                             ast: t,
                             name,
-                            entity: None,
+                            word: None,
                             scope: scope.clone(),
                             origin: ir::Origin::Blueprint {
                                 name: bp.name.value.clone(),
@@ -229,7 +232,7 @@ impl<'a> Resolver<'a> {
         if self.dict.get(&name.value).is_some() {
             self.diags.push(Diagnostic::error(
                 name.span,
-                format!("`{}` は entity 名と衝突している", name.value),
+                format!("`{}` は語と衝突している", name.value),
             ));
         }
     }
@@ -262,7 +265,7 @@ impl<'a> Resolver<'a> {
     /// blueprint スコープを踏まえて識別子の「単数形の基底名」を返す。
     fn base_name(&self, ident: &Spanned<String>, scope: &HashMap<String, Bound>) -> String {
         match scope.get(&ident.value) {
-            Some(Bound::Entity(e)) => e.clone(),
+            Some(Bound::Word(e)) => e.clone(),
             Some(Bound::Table(t)) => singularize(t),
             None => ident.value.clone(),
         }
@@ -305,7 +308,10 @@ impl<'a> Resolver<'a> {
 
     // ---------- テーブル本体 ----------
 
-    fn build_table(&mut self, p: &Pending<'a>) -> (ir::Table, Vec<RelationSpec>) {
+    fn build_table(
+        &mut self,
+        p: &Pending<'a>,
+    ) -> (ir::Table, Vec<RelationSpec>, Vec<ast::Relation>) {
         let mut columns: IndexMap<String, ir::Column> = IndexMap::new();
         let mut pk: Vec<String> = Vec::new();
         let mut indexes: Vec<ir::Index> = Vec::new();
@@ -314,6 +320,7 @@ impl<'a> Resolver<'a> {
         let mut overrides: Vec<&ast::Override> = Vec::new();
 
         let mut relations: Vec<RelationSpec> = Vec::new();
+        let mut reverses: Vec<ast::Relation> = Vec::new();
         let mut seen = Vec::new();
         self.walk_members(
             &p.ast.members,
@@ -327,6 +334,7 @@ impl<'a> Resolver<'a> {
             &mut except_indexes,
             &mut overrides,
             &mut relations,
+            &mut reverses,
         );
 
         for name in &excepts {
@@ -381,10 +389,10 @@ impl<'a> Resolver<'a> {
         }
 
         let comment = p.ast.comment.as_ref().map(|c| c.value.clone()).or_else(|| {
-            p.entity
+            p.word
                 .as_deref()
-                .and_then(|e| self.dict.get(e))
-                .and_then(|e| e.comment.clone())
+                .and_then(|w| self.dict.get(w))
+                .and_then(|w| w.comment.clone())
         });
 
         relations.retain(|r| columns.contains_key(&r.column));
@@ -399,16 +407,18 @@ impl<'a> Resolver<'a> {
         (
             ir::Table {
                 name: p.name.clone(),
-                entity: p.entity.clone(),
+                word: p.word.clone(),
                 comment,
                 columns,
                 pk,
                 indexes,
                 foreign_keys: Vec::new(),
+                reverses: Vec::new(),
                 origin: p.origin.clone(),
                 span: p.ast.name.span,
             },
             relations,
+            reverses,
         )
     }
 
@@ -426,6 +436,7 @@ impl<'a> Resolver<'a> {
         except_indexes: &mut Vec<Vec<String>>,
         overrides: &mut Vec<&'a ast::Override>,
         relations: &mut Vec<RelationSpec>,
+        reverses: &mut Vec<ast::Relation>,
     ) {
         for m in members {
             match &m.value {
@@ -467,22 +478,21 @@ impl<'a> Resolver<'a> {
                     except_indexes,
                     overrides,
                     relations,
+                    reverses,
                 ),
                 ast::Member::Override(ov) => overrides.push(ov),
                 ast::Member::Except(names) => excepts.extend(names.iter().cloned()),
                 ast::Member::ExceptIndex(cols) => {
                     except_indexes.push(cols.iter().map(|c| c.value.clone()).collect())
                 }
-                ast::Member::BelongsTo(t) | ast::Member::UniqueBelongsTo(t) => {
-                    let unique = matches!(m.value, ast::Member::UniqueBelongsTo(_));
-                    let base = self.base_name(t, scope);
-                    let vars = HashMap::from([("table", base)]);
-                    let fk_col =
-                        self.render(&self.config.naming.foreign_key.clone(), &vars, m.span);
-                    let by = if unique {
-                        "unique_belongs_to"
-                    } else {
-                        "belongs_to"
+                ast::Member::Relation(rel) if rel.kind.owns_fk() => {
+                    let fk_col = match &rel.fk {
+                        Some(name) => name.value.clone(),
+                        None => {
+                            let base = self.base_name(&rel.target, scope);
+                            let vars = HashMap::from([("table", base)]);
+                            self.render(&self.config.naming.foreign_key.clone(), &vars, m.span)
+                        }
                     };
                     let placeholder = ir::Column {
                         name: fk_col.clone(),
@@ -491,7 +501,9 @@ impl<'a> Resolver<'a> {
                         default: None,
                         on_update: None,
                         comment: None,
-                        origin: ir::Origin::Generated { by: by.into() },
+                        origin: ir::Origin::Generated {
+                            by: rel.kind.keyword().into(),
+                        },
                         span: m.span,
                     };
                     if let Some(prev) = columns.insert(fk_col.clone(), placeholder) {
@@ -505,12 +517,14 @@ impl<'a> Resolver<'a> {
                         continue;
                     }
                     relations.push(RelationSpec {
-                        target: t.clone(),
-                        unique,
+                        target: rel.target.clone(),
+                        unique: rel.kind.is_unique(),
                         column: fk_col,
+                        alias: rel.alias.as_ref().map(|a| a.value.clone()),
                         span: m.span,
                     });
                 }
+                ast::Member::Relation(rel) => reverses.push(rel.clone()),
             }
         }
     }
@@ -528,6 +542,7 @@ impl<'a> Resolver<'a> {
         except_indexes: &mut Vec<Vec<String>>,
         overrides: &mut Vec<&'a ast::Override>,
         relations: &mut Vec<RelationSpec>,
+        reverses: &mut Vec<ast::Relation>,
     ) {
         if use_stack.contains(&name.value) {
             let path = use_stack.join(" -> ");
@@ -562,6 +577,7 @@ impl<'a> Resolver<'a> {
             except_indexes,
             overrides,
             relations,
+            reverses,
         );
         use_stack.pop();
     }
@@ -664,6 +680,7 @@ impl<'a> Resolver<'a> {
         Some(ResolvedRelation {
             ty,
             fk: ir::ForeignKey {
+                alias: self.relation_alias(spec, &base),
                 columns: vec![spec.column.clone()],
                 ref_table: ref_table_name,
                 ref_columns: vec![ref_col_name],
@@ -713,6 +730,7 @@ impl<'a> Resolver<'a> {
                     target: side.clone(),
                     unique: false,
                     column: col_name.clone(),
+                    alias: None,
                     span: call.span,
                 };
                 let Some(r) = self.resolve_relation(&spec, &HashMap::new(), schema) else {
@@ -742,17 +760,189 @@ impl<'a> Resolver<'a> {
             let pk: Vec<String> = columns.keys().cloned().collect();
             schema.tables.push(ir::Table {
                 name,
-                entity: None,
+                word: None,
                 comment: None,
                 columns,
                 pk,
                 indexes: Vec::new(),
                 foreign_keys: fks,
+                reverses: Vec::new(),
                 origin: ir::Origin::Generated {
                     by: "associate".into(),
                 },
                 span: call.span,
             });
+        }
+    }
+
+    // ---------- 逆参照 ----------
+
+    /// FKを持つ側の関連名。
+    fn relation_alias(&mut self, spec: &RelationSpec, base: &str) -> String {
+        match &spec.alias {
+            Some(a) => a.clone(),
+            None => {
+                let vars = HashMap::from([("table", base.to_string())]);
+                self.render(&self.config.naming.belongs_to.clone(), &vars, spec.span)
+            }
+        }
+    }
+
+    fn attach_reverses(
+        &mut self,
+        pendings: &[Pending<'a>],
+        reverses: &[Vec<ast::Relation>],
+        schema: &mut ir::Schema,
+    ) {
+        // 参照先テーブル名 -> そこへ向かうFK
+        let mut incoming: HashMap<String, Vec<IncomingFk>> = HashMap::new();
+        for t in &schema.tables {
+            for fk in &t.foreign_keys {
+                let unique = t
+                    .indexes
+                    .iter()
+                    .any(|i| i.unique && i.columns == fk.columns);
+                incoming
+                    .entry(fk.ref_table.clone())
+                    .or_default()
+                    .push(IncomingFk {
+                        from_table: t.name.clone(),
+                        from_word: t.word.clone(),
+                        columns: fk.columns.clone(),
+                        unique,
+                    });
+            }
+        }
+
+        for i in 0..schema.tables.len() {
+            let table_name = schema.tables[i].name.clone();
+            let candidates = incoming.get(&table_name).cloned().unwrap_or_default();
+            let mut used = vec![false; candidates.len()];
+            let mut out: Vec<ir::Reverse> = Vec::new();
+
+            let specs: Vec<ast::Relation> = reverses.get(i).cloned().unwrap_or_default();
+            let scope = pendings.get(i).map(|p| p.scope.clone()).unwrap_or_default();
+
+            for spec in &specs {
+                let base = self.base_name(&spec.target, &scope);
+                let from_table = match scope.get(&spec.target.value) {
+                    Some(Bound::Table(t)) => t.clone(),
+                    _ => self.table_name_for(&base),
+                };
+                let hits: Vec<usize> = candidates
+                    .iter()
+                    .enumerate()
+                    .filter(|(j, c)| !used[*j] && c.from_table == from_table)
+                    .filter(|(_, c)| match &spec.via {
+                        Some(v) => c.columns == [v.value.clone()],
+                        None => true,
+                    })
+                    .map(|(j, _)| j)
+                    .collect();
+
+                let j = match hits.as_slice() {
+                    [j] => *j,
+                    [] => {
+                        self.diags.push(Diagnostic::error(
+                            spec.target.span,
+                            format!(
+                                "`{from_table}` から `{table_name}` へのFKが無いため `{}` を解決できない",
+                                spec.kind.keyword()
+                            ),
+                        ));
+                        continue;
+                    }
+                    _ => {
+                        self.diags.push(Diagnostic::error(
+                            spec.target.span,
+                            format!(
+                                "`{from_table}` から `{table_name}` へのFKが複数ある。`via=` で選ぶ"
+                            ),
+                        ));
+                        continue;
+                    }
+                };
+                let c = &candidates[j];
+                if c.unique != spec.kind.is_unique() {
+                    let want = if c.unique { "has_one" } else { "has_many" };
+                    self.diags.push(Diagnostic::error(
+                        spec.target.span,
+                        format!("この参照は1対1ではないため `{want}` を使う"),
+                    ));
+                    continue;
+                }
+                used[j] = true;
+                let alias = match &spec.alias {
+                    Some(a) => a.value.clone(),
+                    None => self.default_reverse_alias(c, spec.target.span),
+                };
+                out.push(ir::Reverse {
+                    alias,
+                    from_table: c.from_table.clone(),
+                    via: c.columns.clone(),
+                    unique: c.unique,
+                    span: spec.target.span,
+                });
+            }
+
+            // 明示されなかったFKにも既定の名前で逆参照を作る。
+            let span = schema.tables[i].span;
+            for (j, c) in candidates.iter().enumerate() {
+                if used[j] {
+                    continue;
+                }
+                let alias = self.default_reverse_alias(c, span);
+                out.push(ir::Reverse {
+                    alias,
+                    from_table: c.from_table.clone(),
+                    via: c.columns.clone(),
+                    unique: c.unique,
+                    span,
+                });
+            }
+
+            self.check_relation_names(&schema.tables[i], &out);
+            schema.tables[i].reverses = out;
+        }
+    }
+
+    fn default_reverse_alias(&mut self, c: &IncomingFk, span: Span) -> String {
+        let base = c
+            .from_word
+            .clone()
+            .unwrap_or_else(|| singularize(&c.from_table));
+        let tpl = if c.unique {
+            self.config.naming.has_one.clone()
+        } else {
+            self.config.naming.has_many.clone()
+        };
+        let vars = HashMap::from([("table", base)]);
+        self.render(&tpl, &vars, span)
+    }
+
+    /// 関連名がカラム名や他の関連名と衝突していないか。
+    fn check_relation_names(&mut self, table: &ir::Table, reverses: &[ir::Reverse]) {
+        let mut seen: HashMap<&str, Span> = HashMap::new();
+        for fk in &table.foreign_keys {
+            seen.insert(fk.alias.as_str(), fk.span);
+        }
+        for r in reverses {
+            if table.columns.contains_key(&r.alias) {
+                self.diags.push(Diagnostic::error(
+                    r.span,
+                    format!("関連名 `{}` が同名のカラムと衝突している", r.alias),
+                ));
+                continue;
+            }
+            if let Some(prev) = seen.insert(r.alias.as_str(), r.span) {
+                self.diags.push(
+                    Diagnostic::error(
+                        r.span,
+                        format!("関連名 `{}` が重複している。`alias=` で分ける", r.alias),
+                    )
+                    .with_label(prev, "先の関連"),
+                );
+            }
         }
     }
 
@@ -786,7 +976,16 @@ struct RelationSpec {
     target: Spanned<String>,
     unique: bool,
     column: String,
+    alias: Option<String>,
     span: Span,
+}
+
+#[derive(Debug, Clone)]
+struct IncomingFk {
+    from_table: String,
+    from_word: Option<String>,
+    columns: Vec<String>,
+    unique: bool,
 }
 
 struct ResolvedRelation {

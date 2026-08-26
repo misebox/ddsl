@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::EntitiesBlock;
+use crate::ast::WordsBlock;
 use crate::span::Span;
 
 #[derive(Debug, Clone)]
@@ -11,7 +11,7 @@ pub struct Entry {
     pub span: Span,
 }
 
-/// `entities` ブロックの命名辞書。
+/// `words` ブロックの語の辞書。
 #[derive(Debug, Default)]
 pub struct Dict {
     by_singular: HashMap<String, Entry>,
@@ -40,7 +40,7 @@ impl Resolved {
 }
 
 impl Dict {
-    pub fn from_block(block: Option<&EntitiesBlock>) -> Dict {
+    pub fn from_block(block: Option<&WordsBlock>) -> Dict {
         let mut dict = Dict::default();
         let Some(block) = block else { return dict };
         for e in &block.entries {

@@ -17,11 +17,20 @@
 | 上書き | `override 列 キー=値 ...` |
 | 除外 | `except 名前` / `except [名前, ...]` |
 | index除外 | `except index 列` / `except index [列, ...]` |
-| 従属 | `belongs_to entity` |
-| 1対1従属 | `unique_belongs_to entity` |
+| 従属 | `belongs_to 語 [fk="..."] [alias="..."]` |
+| 1対1従属 | `unique_belongs_to 語 [fk="..."] [alias="..."]` |
+| 逆参照（多） | `has_many 語 [via="..."] [alias="..."]` |
+| 逆参照（1対1） | `has_one 語 [via="..."] [alias="..."]` |
 | 局所束縛（blueprint内） | `let 名前 = 式` |
 
 列リストは単一なら角括弧を省略できる。
+
+宣言位置（`column` や `table` の直後）には新しい名前を裸で書く。値位置（`キー=値` の右辺）の裸の識別子は参照（語・型名・キーワード）を表す。値位置に新しい名前を書くときは文字列にする。
+
+```
+column email type=text            # email は宣言位置。text は型名の参照
+belongs_to user fk="sender_id"    # user は語の参照。sender_id は新しい名前
+```
 
 ### マクロ
 
@@ -50,7 +59,7 @@ mixin 名前 [comment="..."] { ... }
 blueprint 名前 引数... [comment="..."] { ... }
 naming { ... }
 constraints { ... }
-entities { ... }
+words { ... }
 ```
 
 ### 値の種類
@@ -142,21 +151,50 @@ except  index published_at
 
 ## テーブル間構造
 
-- `belongs_to entity`：テーブル定義内に書く。FK列名・型・on_delete・indexは config に従う。参照先PKが `smallserial` / `serial` / `bigserial` の場合、FK列の型は `smallint` / `integer` / `bigint` とする。
-- `unique_belongs_to entity`：FKを持つ側のテーブルに書く。one_to_one。FK列に一意制約が付く。
+FKを持つ側に `belongs_to` / `unique_belongs_to` を書く。参照される側に `has_many` / `has_one` を書く。
+
+- `belongs_to 語`：FK列を生成する。型・on_delete・indexは config に従う。参照先PKが `smallserial` / `serial` / `bigserial` の場合、FK列の型は `smallint` / `integer` / `bigint` とする。
+- `unique_belongs_to 語`：`belongs_to` と同じくFK列を生成し、一意制約を付ける。one_to_one。
+- `has_many 語` / `has_one 語`：逆参照に名前を付ける。カラムも制約も生成しないため DDL には現れない。ORM のモデル生成でのみ使う。
 - `associate(a, b)`：グローバルスコープに書く。FK2列のみを持つ中間テーブルを生成し、`pk [a_id, b_id]` を付ける。中間テーブルにカラムを追加する場合は、通常のテーブルに `belongs_to` を2つ書く。
 
-## 命名辞書
+### 属性
 
-`entities` ブロックに `singular plural comment` の順で列挙する。`singular()` / `plural()` はこの辞書で解決する。辞書に無い語は規則変化にフォールバックする。
+| キー | 書ける文 | 意味 | 既定値 |
+|---|---|---|---|
+| `fk` | `belongs_to` / `unique_belongs_to` | FK列名 | `naming.foreign_key` |
+| `alias` | 4文すべて | その側の関連名 | `naming.belongs_to` / `naming.has_many` / `naming.has_one` |
+| `via` | `has_many` / `has_one` | 対応するFK列名 | 参照が1本ならその列 |
 
-`entities` は命名辞書であり、単複を引くためだけの語を登録してよい。`table` 宣言の無いエントリはエラーにしない。
+```
+table message {
+  belongs_to user fk="sender_id"   alias="sender"
+  belongs_to user fk="receiver_id" alias="receiver"
+}
+
+table user {
+  has_many message via="sender_id"   alias="sent_messages"
+  has_many message via="receiver_id" alias="received_messages"
+}
+```
+
+`has_many` / `has_one` は省略できる。省略した場合も逆参照は既定の名前で存在する。
+
+### 対応付け
+
+`has_many` / `has_one` は、その語のテーブルからこのテーブルへ向かうFKに対応する。FKが複数ある場合は `via=` で選ぶ。
+
+## words
+
+語の辞書。`singular plural comment` の順で列挙する。`singular()` / `plural()` はこの辞書で解決する。辞書に無い語は規則変化にフォールバックする。
+
+テーブル名・列名・関連名はすべて語から組み立てる。単複を引くためだけの語を登録してよく、`table` 宣言の無いエントリはエラーにしない。
 
 複合語の複数形は `name_join()` で組み立てる。
 
 ## comment
 
-`entities` の第3列のほか、`table` / `blueprint` / `mixin` / `column` に `comment="..."` を書ける。
+`words` の第3列のほか、`table` / `blueprint` / `mixin` / `column` に `comment="..."` を書ける。
 
 ```
 table user comment="ユーザー" {
@@ -164,7 +202,7 @@ table user comment="ユーザー" {
 }
 ```
 
-`entities` と `table` の両方に記述がある場合は `table` 側を採用する。
+`words` と `table` の両方に記述がある場合は `table` 側を採用する。
 
 ## config
 
@@ -186,10 +224,15 @@ naming {
   index = "idx_${table}_${columns}"
   unique_index = "uq_${table}_${columns}"
   column_separator = "_"
+  belongs_to = "${singular(table)}"
+  has_many = "${plural(table)}"
+  has_one = "${singular(table)}"
 }
 ```
 
 `${columns}` は複数列のとき `column_separator` で連結する。
+
+`belongs_to` は参照先の語、`has_many` / `has_one` はFKを持つ側の語を `table` として展開する。
 
 ### `constraints`
 
@@ -234,7 +277,7 @@ apply_blueprint(approvable, post)
 
 ### 引数
 
-引数はすべて entity。型注釈は書かない。渡す語は `entities` に登録されていること。
+引数はすべて語。型注釈は書かない。渡す語は `words` に登録されていること。
 
 ### 局所束縛 `let`
 
@@ -246,9 +289,9 @@ apply_blueprint(approvable, post)
 
 1. 仮引数
 2. `let` 束縛
-3. 実エンティティ
+3. 語
 
-仮引数名・`let` 束縛名が実エンティティ名と衝突した場合はエラー。
+仮引数名・`let` 束縛名が語と衝突した場合はエラー。
 
 ### `name_join`
 
@@ -265,8 +308,12 @@ apply_blueprint(approvable, post)
 - テーブル名・列名の重複
 - 出力ターゲットの予約語との衝突（警告）
 - `use` の循環参照
-- blueprint の仮引数名・`let` 束縛名と実エンティティ名の衝突
+- blueprint の仮引数名・`let` 束縛名と語の衝突
 - 単複が辞書に無く規則変化で解決された場合は警告
+- `has_many` / `has_one` に対応するFKが無い
+- FKが複数あるのに `via=` が無い
+- `has_many` を `unique_belongs_to` に、`has_one` を `belongs_to` に対して書いている
+- 関連名が同じテーブルのカラム名や他の関連名と衝突している
 
 ## indexのバリデーション
 
@@ -296,7 +343,7 @@ constraints {
   foreign_key_index = true
 }
 
-entities {
+words {
   user       users       "ユーザー"
   category   categories  "商品カテゴリ"
   product    products    "商品"
@@ -352,6 +399,8 @@ table user comment="ユーザー" {
   use base
   column email type=text comment="ログインID"
   column name  type=text
+  has_many post
+  has_one profile
 
   index email unique
 }

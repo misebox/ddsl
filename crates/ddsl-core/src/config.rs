@@ -14,6 +14,9 @@ const DEFAULT_NAMING: &[(&str, &str)] = &[
     ("index", "idx_${table}_${columns}"),
     ("unique_index", "uq_${table}_${columns}"),
     ("column_separator", "_"),
+    ("belongs_to", "${singular(table)}"),
+    ("has_many", "${plural(table)}"),
+    ("has_one", "${singular(table)}"),
 ];
 
 const NAMING_KEYS: &[&str] = &[
@@ -25,6 +28,9 @@ const NAMING_KEYS: &[&str] = &[
     "index",
     "unique_index",
     "column_separator",
+    "belongs_to",
+    "has_many",
+    "has_one",
 ];
 
 const CONSTRAINT_KEYS: &[&str] = &[
@@ -52,6 +58,9 @@ pub struct Naming {
     pub index: Template,
     pub unique_index: Template,
     pub column_separator: String,
+    pub belongs_to: Template,
+    pub has_many: Template,
+    pub has_one: Template,
 }
 
 #[derive(Debug, Clone)]
@@ -88,6 +97,9 @@ impl Default for Config {
                 index: t("index"),
                 unique_index: t("unique_index"),
                 column_separator: "_".into(),
+                belongs_to: t("belongs_to"),
+                has_many: t("has_many"),
+                has_one: t("has_one"),
             },
             constraints: Constraints {
                 null_default: false,
@@ -155,6 +167,9 @@ impl Config {
                             "name_join" => self.naming.name_join = t,
                             "index" => self.naming.index = t,
                             "unique_index" => self.naming.unique_index = t,
+                            "belongs_to" => self.naming.belongs_to = t,
+                            "has_many" => self.naming.has_many = t,
+                            "has_one" => self.naming.has_one = t,
                             _ => {}
                         },
                         Err(msg) => diags.push(Diagnostic::error(span, msg)),

@@ -95,6 +95,91 @@ fn fk_type_follows_referenced_serial_pk() {
 }
 
 #[test]
+fn reverse_relations_default_to_plural_and_singular() {
+    let (schema, _) = compile(SAMPLE);
+    let users = schema.table("users").expect("users");
+    let by_alias = |a: &str| users.reverses.iter().find(|r| r.alias == a).cloned();
+    assert!(by_alias("posts").is_some_and(|r| !r.unique));
+    assert!(by_alias("profile").is_some_and(|r| r.unique));
+    // 明示していない belongs_to にも逆参照が付く
+    assert!(by_alias("orders").is_some());
+}
+
+#[test]
+fn belongs_to_alias_defaults_to_singular() {
+    let (schema, _) = compile(SAMPLE);
+    let posts = schema.table("posts").expect("posts");
+    let aliases: Vec<&str> = posts
+        .foreign_keys
+        .iter()
+        .map(|f| f.alias.as_str())
+        .collect();
+    assert_eq!(aliases, vec!["user", "category"]);
+}
+
+const TWO_FKS: &str = concat!(
+    "words {\n  user users \"u\"\n  message messages \"m\"\n}\n",
+    "mixin base {\n  column id type=serial\n  pk id\n}\n",
+    "table user {\n  use base\n",
+    "  has_many message via=\"sender_id\" alias=\"sent\"\n",
+    "  has_many message via=\"receiver_id\" alias=\"received\"\n}\n",
+    "table message {\n  use base\n",
+    "  belongs_to user fk=\"sender_id\" alias=\"sender\"\n",
+    "  belongs_to user fk=\"receiver_id\" alias=\"receiver\"\n}\n"
+);
+
+#[test]
+fn two_fks_to_same_table_resolve_by_fk_and_via() {
+    let (schema, diags) = compile(TWO_FKS);
+    assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
+    let messages = schema.table("messages").expect("messages");
+    let cols: Vec<&str> = messages.columns.keys().map(String::as_str).collect();
+    assert_eq!(cols, vec!["id", "sender_id", "receiver_id"]);
+    let users = schema.table("users").expect("users");
+    let mut aliases: Vec<&str> = users.reverses.iter().map(|r| r.alias.as_str()).collect();
+    aliases.sort_unstable();
+    assert_eq!(aliases, vec!["received", "sent"]);
+}
+
+#[test]
+fn requires_via_when_several_fks_match() {
+    let src = TWO_FKS.replace("via=\"sender_id\" alias=\"sent\"", "alias=\"sent\"");
+    let (_, diags) = compile(&src);
+    assert!(
+        errors(&diags).iter().any(|m| m.contains("`via=` で選ぶ")),
+        "{:?}",
+        errors(&diags)
+    );
+}
+
+#[test]
+fn rejects_has_many_on_one_to_one() {
+    let src = concat!(
+        "words {\n  user users \"u\"\n  profile profiles \"p\"\n}\n",
+        "mixin base {\n  column id type=serial\n  pk id\n}\n",
+        "table user {\n  use base\n  has_many profile\n}\n",
+        "table profile {\n  use base\n  unique_belongs_to user\n}\n"
+    );
+    let (_, diags) = compile(src);
+    assert!(
+        errors(&diags).iter().any(|m| m.contains("has_one")),
+        "{:?}",
+        errors(&diags)
+    );
+}
+
+#[test]
+fn rejects_duplicate_relation_alias() {
+    let src = TWO_FKS.replace("alias=\"received\"", "alias=\"sent\"");
+    let (_, diags) = compile(&src);
+    assert!(
+        errors(&diags).iter().any(|m| m.contains("重複")),
+        "{:?}",
+        errors(&diags)
+    );
+}
+
+#[test]
 fn detects_mixin_cycle() {
     let src = "mixin a {\n  use b\n}\nmixin b {\n  use a\n}\ntable x {\n  use a\n}\n";
     let (_, diags) = compile(src);
@@ -130,15 +215,15 @@ fn rejects_override_of_missing_column() {
 }
 
 #[test]
-fn rejects_blueprint_param_shadowing_entity() {
+fn rejects_blueprint_param_shadowing_word() {
     let src = concat!(
-        "entities {\n  user users \"u\"\n  post posts \"p\"\n}\n",
+        "words {\n  user users \"u\"\n  post posts \"p\"\n}\n",
         "blueprint b user {\n  let t = name_join(user, post)\n  table t {\n    column x type=text\n  }\n}\n",
         "apply_blueprint(b, post)\n"
     );
     let (_, diags) = compile(src);
     assert!(
-        errors(&diags).iter().any(|m| m.contains("entity 名と衝突")),
+        errors(&diags).iter().any(|m| m.contains("語と衝突")),
         "{:?}",
         errors(&diags)
     );

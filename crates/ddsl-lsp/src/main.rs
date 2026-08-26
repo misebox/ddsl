@@ -23,6 +23,8 @@ const STATEMENT_KEYWORDS: &[&str] = &[
     "except",
     "belongs_to",
     "unique_belongs_to",
+    "has_many",
+    "has_one",
     "let",
     "unique",
 ];
@@ -33,10 +35,19 @@ const BLOCK_KEYWORDS: &[&str] = &[
     "blueprint",
     "naming",
     "constraints",
-    "entities",
+    "words",
 ];
 
-const ATTR_KEYS: &[&str] = &["type", "null", "default", "on_update", "comment"];
+const ATTR_KEYS: &[&str] = &[
+    "type",
+    "null",
+    "default",
+    "on_update",
+    "comment",
+    "fk",
+    "alias",
+    "via",
+];
 
 struct Analyzed {
     map: TextMap,
@@ -189,11 +200,11 @@ impl LanguageServer for Backend {
         let text = match &r {
             Reference::Mixin(n) => format!("mixin `{n}`"),
             Reference::Blueprint(n) => format!("blueprint `{n}`"),
-            Reference::Entity(n) => {
+            Reference::Word(n) => {
                 let (schema, _) = resolve(&a.doc, dialect::default());
-                match schema.table_by_entity(n) {
-                    Some(t) => format!("entity `{n}` → テーブル `{}`", t.name),
-                    None => format!("entity `{n}`"),
+                match schema.table_by_word(n) {
+                    Some(t) => format!("語 `{n}` → テーブル `{}`", t.name),
+                    None => format!("語 `{n}`"),
                 }
             }
         };
@@ -277,9 +288,9 @@ impl LanguageServer for Backend {
         for b in &a.doc.blueprints {
             push(&b.name.value, CompletionItemKind::MODULE, "blueprint");
         }
-        if let Some(e) = &a.doc.entities {
+        if let Some(e) = &a.doc.words {
             for entry in &e.entries {
-                push(&entry.singular.value, CompletionItemKind::CLASS, "entity");
+                push(&entry.singular.value, CompletionItemKind::CLASS, "語");
             }
         }
         Ok(Some(CompletionResponse::Array(items)))
