@@ -66,9 +66,15 @@ export function Overview() {
           </tr>
           <tr>
             <td>
-              <code>belongs_to</code>, <code>associate</code>
+              <code>belongs_to</code>
             </td>
-            <td>between two tables</td>
+            <td>from one table to another</td>
+          </tr>
+          <tr>
+            <td>
+              <code>associate</code>
+            </td>
+            <td>a table placed between two</td>
           </tr>
           <tr>
             <td>
