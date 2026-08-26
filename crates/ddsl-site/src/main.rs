@@ -325,7 +325,7 @@ fn layout(page: &Page, body: &str, headings: &[Heading]) -> String {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
-<meta name="description" content="DDSL is a DSL. Data Definition Schema Language。スキーマ定義から PostgreSQL の DDL を生成する DSL とそのコンパイラ。">
+<meta name="description" content="DDSL is a DSL for database schema design. スキーマ定義から PostgreSQL の DDL を生成する DSL とそのコンパイラ。">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>&#128190;</text></svg>">
 </head>
@@ -347,13 +347,13 @@ fn layout(page: &Page, body: &str, headings: &[Heading]) -> String {
   </aside>
 </div>
 <footer class="foot">
-  <p><strong>DDSL</strong> is a DSL — Data Definition Schema Language is a Domain Specific Language.</p>
+  <p><strong>DDSL</strong> is a DSL for database schema design.</p>
 </footer>
 </body>
 </html>
 "##,
         title = if page.output == "index.html" {
-            "DDSL — Data Definition Schema Language".to_string()
+            "DDSL — a DSL for database schema design".to_string()
         } else {
             format!("{} — DDSL", escape(page.title))
         },
