@@ -4,6 +4,7 @@ pub mod config;
 pub mod diag;
 pub mod dialect;
 pub mod dict;
+pub mod highlight;
 pub mod ir;
 pub mod lexer;
 pub mod parser;

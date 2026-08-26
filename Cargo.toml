@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/ddsl-core", "crates/ddsl-cli", "crates/ddsl-lsp", "crates/ddsl-site"]
+members = ["crates/ddsl-core", "crates/ddsl-cli", "crates/ddsl-lsp", "crates/ddsl-site", "crates/ddsl-wasm"]
 
 [workspace.package]
 version = "0.1.1"

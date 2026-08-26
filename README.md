@@ -18,6 +18,7 @@
 | `crates/ddsl-core` | lexer / parser / resolver / codegen |
 | `crates/ddsl-cli` | `ddsl` コマンド |
 | `crates/ddsl-lsp` | language server |
+| `crates/ddsl-wasm` | WebAssembly バインディング（ドキュメントのプレイグラウンド） |
 | `crates/ddsl-site` | ドキュメントサイトの生成（`cargo run -p ddsl-site` → `dist/`） |
 | `editors/vscode` | VS Code 拡張（syntax highlight + LSP クライアント） |
 | `docs/ddsl.gbnf` | GBNF 文法（制約付きデコード用） |

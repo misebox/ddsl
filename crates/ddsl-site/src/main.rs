@@ -1,12 +1,10 @@
-mod highlight;
-
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
-use highlight::{ddsl_to_html, escape};
+use ddsl_core::highlight::{escape, sql_to_html, to_html as ddsl_to_html};
 
 struct Page {
     source: &'static str,
@@ -34,6 +32,13 @@ const PAGES: &[Page] = &[
         title: "ツール",
         nav: "ツール",
     },
+    // markdown ではなく、直接書いた HTML から作る。
+    Page {
+        source: "",
+        output: "playground.html",
+        title: "プレイグラウンド",
+        nav: "プレイグラウンド",
+    },
 ];
 
 struct Heading {
@@ -49,9 +54,13 @@ fn main() -> Result<()> {
     fs::create_dir_all(&out).context("dist を作れない")?;
 
     for page in PAGES {
-        let md = fs::read_to_string(docs.join(page.source))
-            .with_context(|| format!("読めない: docs/{}", page.source))?;
-        let (body, headings) = render_markdown(&md);
+        let (body, headings) = if page.source.is_empty() {
+            (include_str!("playground.html").to_string(), Vec::new())
+        } else {
+            let md = fs::read_to_string(docs.join(page.source))
+                .with_context(|| format!("読めない: docs/{}", page.source))?;
+            render_markdown(&md)
+        };
         let html = layout(page, &body, &headings);
         fs::write(out.join(page.output), html)
             .with_context(|| format!("書けない: dist/{}", page.output))?;
@@ -63,14 +72,23 @@ fn main() -> Result<()> {
     fs::write(out.join(".nojekyll"), "")?;
     copy_if_exists(&root.join("docs/ddsl.gbnf"), &out.join("ddsl.gbnf"))?;
     copy_if_exists(&root.join("examples/sample.ddsl"), &out.join("sample.ddsl"))?;
+
+    // プレイグラウンド用の WebAssembly。無ければページ側で読み込み失敗を表示する。
+    let pkg = root.join("crates/ddsl-wasm/pkg");
+    for name in ["ddsl_wasm.js", "ddsl_wasm_bg.wasm"] {
+        if !copy_if_exists(&pkg.join(name), &out.join(name))? {
+            eprintln!("警告: {name} が無い。wasm-pack build を先に実行する");
+        }
+    }
     Ok(())
 }
 
-fn copy_if_exists(from: &Path, to: &Path) -> Result<()> {
-    if from.exists() {
-        fs::copy(from, to)?;
+fn copy_if_exists(from: &Path, to: &Path) -> Result<bool> {
+    if !from.exists() {
+        return Ok(false);
     }
-    Ok(())
+    fs::copy(from, to)?;
+    Ok(true)
 }
 
 fn render_markdown(md: &str) -> (String, Vec<Heading>) {
@@ -205,81 +223,6 @@ fn code_block(lang: &str, code: &str) -> String {
         "<figure class=\"code\" data-lang=\"{}\"><pre><code>{inner}</code></pre></figure>",
         escape(label)
     )
-}
-
-const SQL_KEYWORDS: &[&str] = &[
-    "CREATE",
-    "TABLE",
-    "ALTER",
-    "ADD",
-    "CONSTRAINT",
-    "PRIMARY",
-    "KEY",
-    "FOREIGN",
-    "REFERENCES",
-    "ON",
-    "DELETE",
-    "UPDATE",
-    "CASCADE",
-    "RESTRICT",
-    "SET",
-    "NULL",
-    "NOT",
-    "DEFAULT",
-    "UNIQUE",
-    "INDEX",
-    "COMMENT",
-    "IS",
-    "OR",
-    "REPLACE",
-    "FUNCTION",
-    "RETURNS",
-    "TRIGGER",
-    "BEFORE",
-    "FOR",
-    "EACH",
-    "ROW",
-    "EXECUTE",
-    "LANGUAGE",
-    "BEGIN",
-    "END",
-    "RETURN",
-    "AS",
-];
-
-fn sql_to_html(src: &str) -> String {
-    let mut out = String::new();
-    for token in split_keep(src) {
-        if SQL_KEYWORDS.contains(&token.to_ascii_uppercase().as_str()) {
-            out.push_str(&format!("<span class=\"k\">{}</span>", escape(token)));
-        } else if token.starts_with('\'') {
-            out.push_str(&format!("<span class=\"s\">{}</span>", escape(token)));
-        } else {
-            out.push_str(&escape(token));
-        }
-    }
-    out
-}
-
-/// 単語と区切りを保ったまま分割する。
-fn split_keep(src: &str) -> Vec<&str> {
-    let mut parts = Vec::new();
-    let mut start = 0;
-    let mut in_word = false;
-    for (i, ch) in src.char_indices() {
-        let word = ch.is_alphanumeric() || ch == '_';
-        if word != in_word {
-            if i > start {
-                parts.push(&src[start..i]);
-            }
-            start = i;
-            in_word = word;
-        }
-    }
-    if start < src.len() {
-        parts.push(&src[start..]);
-    }
-    parts
 }
 
 fn layout(page: &Page, body: &str, headings: &[Heading]) -> String {
