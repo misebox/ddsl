@@ -66,6 +66,22 @@ npm run compile
 
 `nounsql-lsp` が PATH に無い場合は設定 `nounsql.server.path` で場所を指定する。
 
+## 例
+
+`examples/` に動く例がある。すべて警告なしで通る。
+
+| ファイル | 内容 |
+|---|---|
+| `minimal.nsql` | 最小の構成 |
+| `relations.nsql` | 同一テーブルへの複数参照、自己参照、複合主キー、`associate` |
+| `blueprint.nsql` | 1つの blueprint から3テーブル。2つの名詞に適用する |
+| `config.nsql` | 命名規則と制約を既定から外して効果を見る |
+| `sample.nsql` | 仕様に出てくる構文をすべて含む |
+
+```
+nounsql sql examples/blueprint.nsql
+```
+
 ## プレイグラウンド
 
 [プレイグラウンド](playground.html)はブラウザの中でコンパイルする。入力はどこにも送られない。

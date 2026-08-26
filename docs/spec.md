@@ -6,6 +6,18 @@
 
 1行1文。行頭のキーワードで文種が決まる。
 
+`#` から行末まではコメント。行をまたぐコメントは無い。
+
+```
+# 共通の列をまとめる
+mixin base {
+  column id type=serial   # 主キー
+  pk id
+}
+```
+
+DDL に残したい説明は `comment` で書く。`#` はソースにしか残らない。
+
 ### 宣言文（括弧なし）
 
 | 文 | 記法 |
@@ -155,7 +167,7 @@ except  index published_at
 
 FKを持つ側に `belongs_to` / `unique_belongs_to` を書く。参照される側に `has_many` / `has_one` を書く。
 
-- `belongs_to 名詞`：FK列を生成する。型・on_delete・indexは config に従う。参照先PKが `smallserial` / `serial` / `bigserial` の場合、FK列の型は `smallint` / `integer` / `bigint` とする。
+- `belongs_to 名詞`：FK列を生成する。列名・on_delete・indexは config に従う。**型は参照先の主キーから決まる**ので書かない。参照先PKが `smallserial` / `serial` / `bigserial` の場合、FK列の型は `smallint` / `integer` / `bigint` になる。
 - `unique_belongs_to 名詞`：`belongs_to` と同じくFK列を生成し、一意制約を付ける。one_to_one。
 - `has_many 名詞` / `has_one 名詞`：逆参照に名前を付ける。カラムも制約も生成しないため DDL には現れない。ORM のモデル生成でのみ使う。
 - `associate(a, b)`：グローバルスコープに書く。`noun(a, b)` から名前を決め、FK2列のみを持つ中間テーブルを生成し、`pk [a_id, b_id]` を付ける。`name=` でテーブルの名詞を、`comment=` でコメントを指定できる。FK列のコメントなど、これ以上のものが要る場合は、通常のテーブルに `belongs_to` を2つ書く。
@@ -189,6 +201,13 @@ table user {
 ```
 
 `has_many` / `has_one` は省略できる。省略した場合も逆参照は既定の名前で存在する。
+
+FK列は既定で `NOT NULL` になる。任意の参照にしたいときは `override` で緩める。
+
+```
+belongs_to category comment="所属カテゴリ"
+override category_id null=true
+```
 
 ### 対応付け
 
@@ -251,16 +270,25 @@ table user {
 コメントの文字列では `${...}` が使える。参照できるのは名詞で、blueprint の仮引数と `let` 束縛もそのまま書ける。
 
 ```
+nouns {
+  post    posts     "投稿"
+  history histories "履歴"
+}
+
 blueprint audited target {
   let t_history = noun(target, history)
 
   table t_history {
     comment "${desc(target)}の変更履歴"
+    column id type=serial
+    pk id
   }
 }
 
-apply_blueprint(audited, post)   # post_histories のコメントは「投稿の変更履歴」
+apply_blueprint(audited, post)
 ```
+
+`post_histories` が生成され、そのコメントは `desc(post)` すなわち `nouns` の第3列から「投稿の変更履歴」になる。
 
 ## config
 
@@ -363,8 +391,6 @@ table t_approval { ... }                  # table_name=plural なので post_app
 
 - `type=` の値が出力ターゲットの型名にあるか
 - `override` 対象のカラムがmixin側に存在するか
-- `except` でprimary keyやFK等の必須カラムを除外していないか
-- FK列の型が参照先PKの型と一致しているか
 - テーブル名・列名の重複
 - 出力ターゲットの予約語との衝突（警告）
 - `use` の循環参照
@@ -375,6 +401,8 @@ table t_approval { ... }                  # table_name=plural なので post_app
 - FKが複数あるのに `via=` が無い
 - `has_many` を `unique_belongs_to` に、`has_one` を `belongs_to` に対して書いている
 - 関連名が同じテーブルのカラム名や他の関連名と衝突している
+- 主キーが無い（警告）。`except` で主キーの列を消した場合もここで出る
+- `except` でFK列を消して関連が消えた（警告）
 
 ## indexのバリデーション
 
