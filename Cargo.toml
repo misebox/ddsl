@@ -5,6 +5,18 @@ members = ["crates/ddsl-core", "crates/ddsl-cli", "crates/ddsl-lsp", "crates/dds
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/misebox/ddsl"
+homepage = "https://misebox.github.io/ddsl"
+authors = ["misebox"]
+keywords = ["dsl", "ddl", "schema", "sql", "postgres"]
+categories = ["database", "compilers", "command-line-utilities"]
+rust-version = "1.91"
 
 [workspace.dependencies]
-ddsl-core = { path = "crates/ddsl-core" }
+ddsl-core = { path = "crates/ddsl-core", version = "0.1.0" }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

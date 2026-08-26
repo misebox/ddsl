@@ -1,7 +1,16 @@
 [package]
 name = "ddsl"
+description = "Data Definition Schema Language: a DSL for database schema design, compiled to PostgreSQL DDL."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+keywords = ["dsl", "ddl", "schema", "sql", "postgres"]
+categories = ["database", "compilers", "command-line-utilities"]
+readme = "README.md"
 
 [dependencies]
 ddsl-core.workspace = true

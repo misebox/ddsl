@@ -1,7 +1,16 @@
 [package]
 name = "ddsl-core"
+description = "Core of the DDSL compiler: lexer, parser, resolver, and PostgreSQL DDL codegen."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+keywords = ["dsl", "ddl", "schema", "sql", "postgres"]
+categories = ["database", "compilers", "parser-implementations"]
+readme = "README.md"
 
 [dependencies]
 indexmap = "2.12"

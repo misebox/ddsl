@@ -22,6 +22,16 @@
 | `editors/vscode` | VS Code 拡張（syntax highlight + LSP クライアント） |
 | `docs/ddsl.gbnf` | GBNF 文法（制約付きデコード用） |
 | `examples/` | サンプルと生成結果 |
+| `scripts/release.sh` | リリースの準備（検査・バージョン更新・タグ） |
+
+## インストール
+
+```
+cargo install ddsl        # CLI
+cargo install ddsl-lsp    # language server
+```
+
+バイナリは [Releases](https://github.com/misebox/ddsl/releases) にもある。
 
 ## 使い方
 
@@ -56,3 +66,17 @@ source
 - `nouns` 辞書と複合名詞 `noun(a, b, ...)`（数は文脈が決める）。規則変化に落ちたら警告
 - DDL 出力: CREATE TABLE / INDEX / FK / COMMENT、`on_update=` はトリガに落とす
 # ddsl
+
+## リリース
+
+```
+scripts/release.sh 0.2.0 --check   # 検査のみ
+scripts/release.sh 0.2.0           # バージョン更新・コミット・タグ
+```
+
+タグを push すると CI がバイナリをビルドし、GitHub Release を作り、crates.io に公開する。
+crates.io への公開には `CARGO_REGISTRY_TOKEN` をリポジトリの secret に登録しておく。
+
+## ライセンス
+
+[MIT](LICENSE-MIT) または [Apache-2.0](LICENSE-APACHE) のどちらかを選べる。
