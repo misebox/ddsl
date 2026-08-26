@@ -127,6 +127,12 @@ impl<'a> Resolver<'a> {
             .collect();
 
         for call in applies {
+            if let Some(comment) = &call.comment {
+                self.diags.push(Diagnostic::error(
+                    comment.span,
+                    "`apply_blueprint` に `comment=` は書けない。blueprint 内の `table` に書く",
+                ));
+            }
             let Some((bp_name, args)) = call.args.split_first() else {
                 self.diags.push(Diagnostic::error(
                     call.span,
@@ -523,7 +529,7 @@ impl<'a> Resolver<'a> {
                         null: false,
                         default: None,
                         on_update: None,
-                        comment: None,
+                        comment: rel.comment.as_ref().map(|c| c.value.clone()),
                         origin: ir::Origin::Generated {
                             by: rel.kind.keyword().into(),
                         },
@@ -784,7 +790,7 @@ impl<'a> Resolver<'a> {
             schema.tables.push(ir::Table {
                 name,
                 noun: None,
-                comment: None,
+                comment: call.comment.as_ref().map(|c| c.value.clone()),
                 columns,
                 pk,
                 indexes: Vec::new(),

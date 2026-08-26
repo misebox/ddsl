@@ -58,7 +58,7 @@ has-many-stmt ::= "has_many" sp1 ident (sp1 rel-attr)*
 has-one-stmt ::= "has_one" sp1 ident (sp1 rel-attr)*
 
 rel-attr ::= rel-key sp "=" sp (fn-call | string)
-rel-key ::= "fk" | "alias" | "via"
+rel-key ::= "fk" | "alias" | "via" | "comment"
 
 attr ::= attr-key sp "=" sp value
 attr-key ::= "type" | "null" | "default" | "on_update" | "comment"
@@ -76,7 +76,8 @@ let-stmt ::= "let" sp1 ident sp "=" sp expr
 
 # ---------- マクロ ----------
 
-associate ::= "associate" sp "(" sp ident sp "," sp ident sp ")"
+associate ::= "associate" sp "(" sp ident sp "," sp ident (sp "," sp comment-arg)? sp ")"
+comment-arg ::= "comment" sp "=" sp string
 apply-blueprint ::= "apply_blueprint" sp "(" sp ident (sp "," sp ident)+ sp ")"
 
 # ---------- 値 ----------

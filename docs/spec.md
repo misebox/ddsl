@@ -17,8 +17,8 @@
 | 上書き | `override 列 キー=値 ...` |
 | 除外 | `except 名前` / `except [名前, ...]` |
 | index除外 | `except index 列` / `except index [列, ...]` |
-| 従属 | `belongs_to 名詞 [fk="..."] [alias="..."]` |
-| 1対1従属 | `unique_belongs_to 名詞 [fk="..."] [alias="..."]` |
+| 従属 | `belongs_to 名詞 [fk="..."] [alias="..."] [comment="..."]` |
+| 1対1従属 | `unique_belongs_to 名詞 [fk="..."] [alias="..."] [comment="..."]` |
 | 逆参照（多） | `has_many 名詞 [via="..."] [alias="..."]` |
 | 逆参照（1対1） | `has_one 名詞 [via="..."] [alias="..."]` |
 | 局所束縛（blueprint内） | `let 名前 = 式` |
@@ -38,7 +38,7 @@ belongs_to user fk="sender_id"    # user は名詞の参照。sender_id は新�
 
 | マクロ | 記法 |
 |---|---|
-| 多対多 | `associate(a, b)` |
+| 多対多 | `associate(a, b [, comment="..."])` |
 | blueprint適用 | `apply_blueprint(名前, 引数...)` |
 
 ### 関数（括弧あり）
@@ -156,15 +156,18 @@ FKを持つ側に `belongs_to` / `unique_belongs_to` を書く。参照される
 - `belongs_to 名詞`：FK列を生成する。型・on_delete・indexは config に従う。参照先PKが `smallserial` / `serial` / `bigserial` の場合、FK列の型は `smallint` / `integer` / `bigint` とする。
 - `unique_belongs_to 名詞`：`belongs_to` と同じくFK列を生成し、一意制約を付ける。one_to_one。
 - `has_many 名詞` / `has_one 名詞`：逆参照に名前を付ける。カラムも制約も生成しないため DDL には現れない。ORM のモデル生成でのみ使う。
-- `associate(a, b)`：グローバルスコープに書く。`noun(a, b)` から名前を決め、FK2列のみを持つ中間テーブルを生成し、`pk [a_id, b_id]` を付ける。中間テーブルにカラムを追加する場合は、通常のテーブルに `belongs_to` を2つ書く。
+- `associate(a, b)`：グローバルスコープに書く。`noun(a, b)` から名前を決め、FK2列のみを持つ中間テーブルを生成し、`pk [a_id, b_id]` を付ける。`comment="..."` でテーブルにコメントを付けられる。FK列のコメントなど、これ以上のものが要る場合は、通常のテーブルに `belongs_to` を2つ書く。
 
 ### 属性
 
 | キー | 書ける文 | 意味 | 既定値 |
 |---|---|---|---|
 | `fk` | `belongs_to` / `unique_belongs_to` | FK列名 | `naming.foreign_key` |
+| `comment` | `belongs_to` / `unique_belongs_to` | FK列のコメント | 無し |
 | `alias` | 4文すべて | その側の関連名。文字列か `noun(...)` | `naming.belongs_to` / `naming.has_many` / `naming.has_one` |
 | `via` | `has_many` / `has_one` | 対応するFK列名 | 参照が1本ならその列 |
+
+`has_many` / `has_one` は列を作らないので `comment=` は書けない。
 
 ```
 table message {
@@ -216,7 +219,7 @@ has_one  profile alias=noun("main", profile)   # main_profile
 
 ## comment
 
-`nouns` の第3列のほか、`table` / `blueprint` / `mixin` / `column` に `comment="..."` を書ける。
+`nouns` の第3列のほか、`table` / `blueprint` / `mixin` / `column` / `belongs_to` / `unique_belongs_to` / `associate` に `comment="..."` を書ける。
 
 ```
 table user comment="ユーザー" {
@@ -410,8 +413,8 @@ blueprint audited target comment="変更履歴" {
 
   table t_history comment="変更履歴" {
     use primary_key
-    belongs_to target
-    belongs_to user
+    belongs_to target comment="変更対象"
+    belongs_to user   comment="変更した人"
     column version     type=integer                        comment="版番号"
     column snapshot    type=jsonb                          comment="変更時点の内容"
     column recorded_at type=timestamptz default=eval(now()) comment="記録日時"
@@ -447,13 +450,13 @@ table product {
 
 table order {
   use base
-  belongs_to user
+  belongs_to user comment="注文したユーザー"
 }
 
 table order_item {
   use base
-  belongs_to order
-  belongs_to product
+  belongs_to order   comment="親の注文"
+  belongs_to product comment="対象の商品"
   column quantity type=integer comment="数量"
 }
 
@@ -461,8 +464,8 @@ table post {
   use base
   use publishable
   except index published_at
-  belongs_to user
-  belongs_to category
+  belongs_to user     comment="投稿者"
+  belongs_to category comment="所属カテゴリ"
   column title type=text comment="表題"
 
   index [status, created_at] unique
@@ -470,10 +473,10 @@ table post {
 
 table profile {
   use base
-  unique_belongs_to user
+  unique_belongs_to user comment="持ち主"
   column bio type=text null=true comment="自己紹介"
 }
 
-associate(user, post)
+associate(user, post, comment="いいね")
 apply_blueprint(audited, post)
 ```

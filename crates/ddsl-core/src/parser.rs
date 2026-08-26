@@ -20,7 +20,7 @@ struct Bail;
 type PResult<T> = Result<T, Bail>;
 
 const ATTR_KEYS: &[&str] = &["type", "null", "default", "on_update", "comment"];
-const RELATION_KEYS: &[&str] = &["fk", "alias", "via"];
+const RELATION_KEYS: &[&str] = &["fk", "alias", "via", "comment"];
 const VALUE_FNS: &[&str] = &["noun", "singular", "plural"];
 
 struct Parser {
@@ -462,6 +462,7 @@ impl Parser {
             fk: None,
             alias: None,
             via: None,
+            comment: None,
         };
         while let Tok::Ident(key) = self.peek().clone() {
             if *self.peek_at(1) != Tok::Eq {
@@ -489,6 +490,10 @@ impl Parser {
                     let value = self.expect_string("列名（文字列）")?;
                     rel.fk.replace(value).is_some()
                 }
+                "comment" => {
+                    let value = self.expect_string("コメント（文字列）")?;
+                    rel.comment.replace(value).is_some()
+                }
                 _ => {
                     let value = self.expect_string("列名（文字列）")?;
                     rel.via.replace(value).is_some()
@@ -513,6 +518,20 @@ impl Parser {
             self.diags.push(Diagnostic::error(
                 span,
                 format!("`{}` に `via=` は書けない", kind.keyword()),
+            ));
+        }
+        if rel.comment.is_some() && !kind.owns_fk() {
+            let span = rel
+                .comment
+                .as_ref()
+                .map(|c| c.span)
+                .unwrap_or(rel.target.span);
+            self.diags.push(Diagnostic::error(
+                span,
+                format!(
+                    "`{}` は列を作らないので `comment=` は書けない",
+                    kind.keyword()
+                ),
             ));
         }
         Ok(Member::Relation(rel))
@@ -643,11 +662,28 @@ impl Parser {
         let start = name.span;
         self.expect(Tok::LParen)?;
         let mut args = Vec::new();
+        let mut comment = None;
         loop {
             if self.at(&Tok::RParen) {
                 break;
             }
-            args.push(self.expect_ident("引数")?);
+            // `キー=値` は名前付き、それ以外は位置引数。
+            if matches!(self.peek(), Tok::Ident(_)) && *self.peek_at(1) == Tok::Eq {
+                let key = self.expect_ident("キー")?;
+                self.expect(Tok::Eq)?;
+                let value = self.expect_string("コメント（文字列）")?;
+                if key.value != "comment" {
+                    self.diags.push(Diagnostic::error(
+                        key.span,
+                        format!("知らないキー `{}`。使えるのは comment", key.value),
+                    ));
+                } else if comment.replace(value).is_some() {
+                    self.diags
+                        .push(Diagnostic::error(key.span, "`comment` が重複している"));
+                }
+            } else {
+                args.push(self.expect_ident("引数")?);
+            }
             if !self.eat(&Tok::Comma) {
                 break;
             }
@@ -656,6 +692,7 @@ impl Parser {
         Ok(MacroCall {
             name,
             args,
+            comment,
             span: start.join(end),
         })
     }

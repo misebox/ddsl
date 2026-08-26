@@ -81,6 +81,8 @@ pub struct Relation {
     pub alias: Option<Spanned<Value>>,
     /// 対応するFK列名。`has_many` 系のみ。
     pub via: Option<Spanned<String>>,
+    /// FK列のコメント。`belongs_to` 系のみ。
+    pub comment: Option<Spanned<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -136,6 +138,8 @@ pub struct Blueprint {
 pub struct MacroCall {
     pub name: Name,
     pub args: Vec<Name>,
+    /// 生成するテーブルのコメント。
+    pub comment: Option<Spanned<String>>,
     pub span: Span,
 }
 
