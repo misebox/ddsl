@@ -92,6 +92,7 @@ bin/release minor           # 0.1.0 -> 0.2.0
 bin/release major           # 0.1.0 -> 1.0.0
 bin/release 0.2.0           # バージョンを直接指定する
 bin/release patch --check   # 検査のみ、何も書き換えない
+bin/release --npm-only      # 今のバージョンを npm にだけ出す
 ```
 
 `CARGO_REGISTRY_TOKEN` に crates.io の API トークンを入れておく。cargo が直接読む変数。
@@ -100,6 +101,8 @@ bin/release patch --check   # 検査のみ、何も書き換えない
 公開済みのバージョンは飛ばすので、途中で失敗しても再実行できる。
 
 npm へは WebAssembly 版を出す。`npm login` が要る。`--skip-npm` で飛ばせる。
+
+npm のバージョンは crates.io に合わせる。`--npm-only` はバージョンを上げず、タグも push もしない。npm が crates.io から遅れているときに追いつかせるためのもの。
 
 タグの push で CI がバイナリをビルドし、GitHub Release を作る。
 
