@@ -20,9 +20,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
       - name: サンプルの DDL を最新にする
-        run: cargo run -p ddsl -- sql examples/sample.ddsl > examples/sample.sql
+        run: cargo run -p ddsl -- sql examples/sample.ddsl -o examples/sample.sql
+
+      - name: プレイグラウンドの WebAssembly をビルドする
+        run: wasm-pack build crates/ddsl-wasm --target web --out-dir pkg --release
+
       - name: サイトを生成する
         run: cargo run -p ddsl-site
       - uses: actions/configure-pages@v5

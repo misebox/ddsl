@@ -1,4 +1,6 @@
-use ddsl_core::lexer::{Tok, lex_all};
+//! DDSL のシンタックスハイライト。ドキュメントサイトと WASM 版で共有する。
+
+use crate::lexer::{Tok, lex_all};
 
 const BLOCK_KEYWORDS: &[&str] = &[
     "table",
@@ -51,7 +53,9 @@ const CONSTANTS: &[&str] = &[
 ];
 
 /// DDSL のソースを、実際の lexer を使って HTML に色付けする。
-pub fn ddsl_to_html(src: &str) -> String {
+///
+/// CSS クラスだけを付けるので、配色は利用側の stylesheet が決める。
+pub fn to_html(src: &str) -> String {
     let (tokens, _) = lex_all(src);
     let mut out = String::new();
     let mut cursor = 0usize;
@@ -185,4 +189,80 @@ pub fn escape(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
+}
+
+const SQL_KEYWORDS: &[&str] = &[
+    "CREATE",
+    "TABLE",
+    "ALTER",
+    "ADD",
+    "CONSTRAINT",
+    "PRIMARY",
+    "KEY",
+    "FOREIGN",
+    "REFERENCES",
+    "ON",
+    "DELETE",
+    "UPDATE",
+    "CASCADE",
+    "RESTRICT",
+    "SET",
+    "NULL",
+    "NOT",
+    "DEFAULT",
+    "UNIQUE",
+    "INDEX",
+    "COMMENT",
+    "IS",
+    "OR",
+    "REPLACE",
+    "FUNCTION",
+    "RETURNS",
+    "TRIGGER",
+    "BEFORE",
+    "FOR",
+    "EACH",
+    "ROW",
+    "EXECUTE",
+    "LANGUAGE",
+    "BEGIN",
+    "END",
+    "RETURN",
+    "AS",
+];
+
+/// 生成した DDL を色付けする。
+pub fn sql_to_html(src: &str) -> String {
+    let mut out = String::new();
+    for token in split_keep(src) {
+        if SQL_KEYWORDS.contains(&token.to_ascii_uppercase().as_str()) {
+            out.push_str(&format!("<span class=\"k\">{}</span>", escape(token)));
+        } else if token.starts_with('\'') {
+            out.push_str(&format!("<span class=\"s\">{}</span>", escape(token)));
+        } else {
+            out.push_str(&escape(token));
+        }
+    }
+    out
+}
+
+/// 単語と区切りを保ったまま分割する。
+fn split_keep(src: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let mut in_word = false;
+    for (i, ch) in src.char_indices() {
+        let word = ch.is_alphanumeric() || ch == '_';
+        if word != in_word {
+            if i > start {
+                parts.push(&src[start..i]);
+            }
+            start = i;
+            in_word = word;
+        }
+    }
+    if start < src.len() {
+        parts.push(&src[start..]);
+    }
+    parts
 }

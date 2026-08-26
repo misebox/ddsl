@@ -64,6 +64,19 @@ npm run compile
 
 `ddsl-lsp` が PATH に無い場合は設定 `ddsl.server.path` で場所を指定する。
 
+## プレイグラウンド
+
+[プレイグラウンド](playground.html)はブラウザの中でコンパイルする。入力はどこにも送られない。
+
+`crates/ddsl-wasm` が `ddsl-core` を WebAssembly に落としたもので、CLI と同じ字句解析・解決・コード生成・シンタックスハイライトを使う。`ddsl-core` の依存は `indexmap` だけで I/O を持たないため、そのまま wasm32 に載る。
+
+```
+wasm-pack build crates/ddsl-wasm --target web --out-dir pkg --release
+cargo run -p ddsl-site
+```
+
+`wasm-pack` の生成物はサイト生成時に `dist/` へ複製される。
+
 ## GBNF
 
 [`ddsl.gbnf`](ddsl.gbnf) は llama.cpp 系の制約付きデコード用の文法。LLM に DDSL を生成させるときに構文を外させないために使う。
@@ -89,4 +102,5 @@ source
 | `crates/ddsl-cli` | `ddsl` コマンド |
 | `crates/ddsl-lsp` | language server |
 | `crates/ddsl-site` | このドキュメントサイトの生成 |
+| `crates/ddsl-wasm` | WebAssembly バインディング（プレイグラウンド用） |
 | `editors/vscode` | VS Code 拡張 |
