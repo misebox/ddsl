@@ -206,10 +206,10 @@ a:hover { color: var(--derived); }
 h1, h2, h3, h4 { letter-spacing: -0.02em; scroll-margin-top: 5rem; }
 
 h1 {
-  font-size: clamp(2rem, 5vw, 2.9rem);
+  font-size: clamp(1.75rem, 3.6vw, 2.3rem);
   font-weight: 700;
-  line-height: 1.12;
-  margin: 0 0 1.25rem;
+  line-height: 1.18;
+  margin: 0 0 1rem;
 }
 
 h2 {
@@ -369,88 +369,18 @@ th {
 .member, .var { color: inherit; }
 .raw { color: var(--muted); }
 
-/* ---------- hero: one noun, and everything it names ---------- */
+/* ---------- hero ---------- */
 
-.hero { margin: 0 0 3.5rem; }
+.hero { margin: 0 0 2.25rem; }
 
-.hero-eyebrow {
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 0 0 1rem;
-}
-
-.hero h1 { max-width: 20ch; }
+.hero h1 { max-width: 18ch; }
 
 .hero-lede {
-  max-width: 46ch;
-  font-size: 1.08rem;
+  max-width: 52ch;
+  font-size: 1.05rem;
   color: var(--muted);
-  margin: 0 0 2rem;
+  margin: 0 0 1.75rem;
 }
-.hero-lede code { font-size: 0.9em; }
-
-/* The signature. A dictionary row on the left, the names it produces
-   on the right, joined by a rule. Everything on the right is generated. */
-.derive {
-  display: grid;
-  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
-  gap: 0 2.5rem;
-  align-items: start;
-  padding: 1.4rem 0 1.6rem;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-  font-family: var(--mono);
-}
-
-@media (max-width: 46rem) {
-  .derive { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
-}
-
-.derive-label {
-  grid-column: 1 / -1;
-  margin: 0 0 0.85rem;
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.derive-seed {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  font-size: 0.95rem;
-}
-
-.derive-seed b { font-weight: 600; }
-.derive-seed span { color: var(--muted); font-size: 0.8rem; }
-
-.derive-out {
-  display: grid;
-  gap: 0.3rem;
-  border-left: 1px solid var(--rule);
-  padding-left: 2.5rem;
-  margin-left: -2.5rem;
-}
-
-@media (max-width: 46rem) {
-  .derive-out { border-left: 0; padding-left: 0; margin-left: 0; }
-}
-
-.derive-row {
-  display: grid;
-  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
-  gap: 1.25rem;
-  align-items: baseline;
-  margin: 0;
-  font-size: 0.85rem;
-}
-
-.derive-row b { font-weight: 500; color: var(--derived); }
-.derive-row span { color: var(--muted); font-size: 0.74rem; }
 
 .hero-actions {
   display: flex;
