@@ -1,15 +1,20 @@
 # nounsql-core
 
-[NounSQL](https://github.com/misebox/nounsql) コンパイラのコア。
+The core of the [NounSQL](https://github.com/misebox/nounsql) compiler: lexer,
+parser, resolver and code generation.
 
-lexer / parser / resolver / codegen を提供する。CLI は [`nounsql`](https://crates.io/crates/nounsql)、language server は [`nounsql-lsp`](https://crates.io/crates/nounsql-lsp)。
+The CLI is [`nounsql`](https://crates.io/crates/nounsql) and the language server
+is [`nounsql-lsp`](https://crates.io/crates/nounsql-lsp).
 
 ```rust
 use nounsql_core::{codegen, dialect, parse, resolve};
 
-let (doc, diags) = parse(source);
+let (doc, diagnostics) = parse(source);
 let (schema, more) = resolve(&doc, dialect::default());
 let sql = codegen::emit(dialect::default(), &schema);
 ```
 
-ドキュメント: https://misebox.github.io/nounsql
+The `serde` feature makes the resolved schema serialisable, which is what
+`nounsql ir --json` and the WebAssembly build use.
+
+Documentation: https://misebox.github.io/nounsql

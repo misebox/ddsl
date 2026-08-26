@@ -86,7 +86,7 @@ publish_npm() {
     npm pkg set \
       name="$NPM_PACKAGE" \
       version="$VERSION" \
-      description="NounSQL: a DSL for database schema design, compiled to PostgreSQL DDL." \
+      description="NounSQL: a DSL for database schema design, compiled to SQL DDL." \
       homepage="https://misebox.github.io/nounsql" \
       repository.type="git" \
       repository.url="git+https://github.com/misebox/nounsql.git"

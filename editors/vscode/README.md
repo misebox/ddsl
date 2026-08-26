@@ -1,22 +1,18 @@
 # NounSQL for VS Code
 
-`.nsql` ファイルの syntax highlight と language server。
+Syntax highlighting and a language server client for `.nsql` files.
 
-## 使い方
-
-```
-cargo install --path ../../crates/nounsql-lsp
+```sh
+cargo install nounsql-lsp
 cd editors/vscode && npm install && npm run compile
 ```
 
-`nounsql-lsp` が PATH に無い場合は設定 `nounsql.server.path` で場所を指定する。
+If `nounsql-lsp` is not on your `PATH`, point `nounsql.server.path` at it.
 
-## 機能
-
-| 機能 | 内容 |
+| Feature | What it does |
 |---|---|
-| 診断 | 保存前でも構文エラー・解決エラーを表示 |
-| 定義へ移動 | `use` → mixin、`belongs_to` → table、`apply_blueprint` → blueprint |
-| ホバー | 名詞から解決されるテーブル名を表示 |
-| アウトライン | table / mixin / blueprint |
-| 補完 | キーワード・属性キー・型名・mixin名・名詞 |
+| Diagnostics | syntax, resolution and warnings, before you save |
+| Go to definition | `use` to its mixin, `belongs_to` to its table, `apply_blueprint` to its blueprint |
+| Hover | the table a noun resolves to |
+| Outline | tables, mixins and blueprints |
+| Completion | keywords, attributes, type names, mixin names and nouns |

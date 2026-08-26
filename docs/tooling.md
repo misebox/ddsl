@@ -1,60 +1,71 @@
-# 内部
+# How it works
 
-コンパイラの構成と、リポジトリの中身。使い方は[使い方](guide.md)、動く例は `examples/` にある。
+What the compiler does between your source and the DDL it prints. The
+[guide](guide.md) covers running it; this page is about the machinery.
 
-## WebAssembly
-
-`crates/nounsql-wasm` が `nounsql-core` を WebAssembly に落としたもの。CLI と同じ字句解析・解決・コード生成・シンタックスハイライトを使う。`nounsql-core` の依存は `indexmap` だけで I/O を持たないため、そのまま wasm32 に載る。
-
-npm パッケージとドキュメントサイトのプレイグラウンドの両方がこれを使う。ブラウザ向けとバンドラ向けで要る形が違うので、出力ターゲットを分けている。
-
-```sh
-wasm-pack build crates/nounsql-wasm --target web     --out-dir pkg     --release  # サイト用
-wasm-pack build crates/nounsql-wasm --target bundler --out-dir pkg-npm --release  # npm 用
-```
-
-## GBNF
-
-[`nounsql.gbnf`](nounsql.gbnf) は llama.cpp 系の制約付きデコード用の文法。LLM に NounSQL を生成させるときに構文を外させないために使う。
-
-## パイプライン
+## The pipeline
 
 ```text
 source
- → lexer      改行を文終端とする。eval(...) の中身は括弧の対応だけ見て1トークンで抜く
- → parser     手書き再帰下降。行単位で回復して診断をまとめる
- → resolver   blueprint展開 → mixin展開 → relation展開 → 命名解決
- → ir         中間表現。mixin と blueprint が消え、名前がすべて確定したスキーマ
- → codegen    ターゲットごとの DDL
+ → lexer      newlines terminate statements; eval(...) is lifted whole by
+              matching parentheses, so SQL never reaches the DSL lexer
+ → parser     hand-written recursive descent; recovers at line boundaries
+              so one run reports every error it can find
+ → resolver   expand blueprints → expand mixins → resolve relations → derive names
+ → ir         mixins and blueprints are gone; every name is settled
+ → codegen    DDL for the selected target
 ```
 
-`belongs_to` は宣言位置で FK 列の枠だけ先に確保し、参照先の主キーの型が判ってから型を埋める。これで `use` と同じく宣言順どおりの列順になる。
+Each stage hands the next one a smaller problem. By the time codegen runs there
+are no conventions left to apply — only tables, columns and constraints with
+final names.
 
-## ドキュメントを書くとき
+## Resolution order
 
-```sh
-bin/preview
-```
+`use` expands where it is written, then `except` removes, then `override`
+replaces. Fixing the order means the result does not depend on where in the
+block you wrote those statements.
 
-Vite の開発サーバが立つ。`docs/*.md` を書き換えると即座に反映される。プレイグラウンドの WebAssembly も一緒にビルドする。
+Column order is the exception, and deliberately so: columns appear in the DDL in
+the order they were declared, because that order is something you chose.
 
-| オプション | 内容 |
-|---|---|
-| `--port <番号>` | 既定は 4321 |
-| `--build` | 本番と同じものをビルドして配信する |
-| `--no-wasm` | WebAssembly を作り直さない。起動が速い |
+`belongs_to` reserves its foreign key column at the point of declaration but
+leaves the type blank. The type is filled in once the referenced table's primary
+key is known. Without that two-step, foreign keys would pile up at the end of
+every table instead of sitting where you wrote them.
 
-サイトの実装は `site/` にある。`docs/*.md` と `examples/*.nsql` は写しを持たず、リポジトリの実物を `import.meta.glob` で読む。markdown の変換は marked、コードブロックの色付けは WebAssembly に落としたコンパイラ本体の字句解析を使う。
+## Names
 
-ドキュメントは静的なページの方が向いているので SPA にしていない。Vite の複数ページビルドで、1ページ1 HTML を出している。
+Every generated name goes through one of the `naming` templates, and every
+template resolves nouns through the `nouns` dictionary. There is no second path:
+if a name appears in the output, it came from a template and a noun.
 
-## crate 構成
+`noun(a, b, ...)` builds a compound noun rather than a string. Only the last
+element takes the number the context asks for, so the same expression yields
+`sent_message` under `has_one` and `sent_messages` under `has_many`.
 
-| パス | 内容 |
-|---|---|
-| `crates/nounsql-core` | lexer / parser / resolver / codegen |
-| `crates/nounsql-cli` | `nounsql` コマンド |
-| `crates/nounsql-lsp` | language server |
-| `crates/nounsql-wasm` | WebAssembly バインディング（npm パッケージとプレイグラウンド） |
-| `site` | ドキュメントサイト。bun + Vite + SolidJS + marked |
-| `editors/vscode` | VS Code 拡張 |
+## Diagnostics
+
+Errors do not stop the run. Because the grammar is one statement per line, the
+parser can skip a failed line and pick up at the next one, so a single run
+reports everything it can reach.
+
+Warnings cover the cases where the compiler can produce something but probably
+should not: a noun that fell back to regular inflection, a table with no primary
+key, a foreign key column removed by `except`.
+
+## WebAssembly
+
+`nounsql-core` depends on `indexmap` and nothing else, and performs no I/O, so it
+compiles to `wasm32` unchanged. The [playground](playground.html) and the
+[npm package](https://www.npmjs.com/package/nounsql) both run that build — the
+same lexer, resolver and code generator as the CLI.
+
+The syntax highlighting on this site comes from the same place. Code blocks are
+coloured by the compiler's own lexer rather than by a second implementation in
+JavaScript, so the highlighting cannot drift from the grammar.
+
+## Grammar for constrained decoding
+
+[`nounsql.gbnf`](nounsql.gbnf) is a GBNF grammar for llama.cpp-style constrained
+decoding. It keeps a language model inside the syntax when generating NounSQL.

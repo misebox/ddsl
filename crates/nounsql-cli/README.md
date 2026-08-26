@@ -2,29 +2,34 @@
 
 **NounSQL is a DSL for Database Schema Design.**
 
-`.nsql` から PostgreSQL の DDL を生成するコンパイラ。
+A compiler from `.nsql` to SQL DDL.
 
-```
+```sh
 cargo install nounsql
 nounsql sql schema.nsql
 ```
 
-| サブコマンド | 出力 |
+| Command | Prints |
 |---|---|
-| `check` | 診断のみ |
-| `sql` | DDL |
-| `ir` | 中間表現（解決済みスキーマ） |
-| `ast` | 構文木 |
+| `check` | diagnostics only |
+| `sql` | the DDL |
+| `ir` | the resolved schema |
+| `ast` | the syntax tree |
 
-| オプション | 内容 |
+| Option | Effect |
 |---|---|
-| `--dialect <名前>` | 出力ターゲット。既定 `postgres` |
-| `-o, --output <PATH>` | 出力先。省略すると標準出力 |
-| `--deny-warnings` | 警告があっても失敗させる |
+| `--dialect <name>` | output target |
+| `-o, --output <path>` | write to a file instead of stdout |
+| `--deny-warnings` | exit non-zero if anything was warned about |
 
-入力に `-` を渡すと標準入力から読む。
+Pass `-` as the input to read standard input.
 
 ```
+nouns {
+  user users "A person who signs in"
+  post posts "Something a user wrote"
+}
+
 mixin base {
   column id type=serial
   pk id
@@ -37,4 +42,4 @@ table post {
 }
 ```
 
-ドキュメント: https://misebox.github.io/nounsql
+Documentation: https://misebox.github.io/nounsql

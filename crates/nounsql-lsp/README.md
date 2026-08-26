@@ -1,19 +1,20 @@
 # nounsql-lsp
 
-[NounSQL](https://github.com/misebox/nounsql) の language server。stdio で話す。
+A language server for [NounSQL](https://github.com/misebox/nounsql), speaking the
+Language Server Protocol over stdio.
 
-```
+```sh
 cargo install nounsql-lsp
 ```
 
-| 機能 | 内容 |
+| Feature | What it does |
 |---|---|
-| 診断 | 構文エラー・解決エラー・警告 |
-| 定義へ移動 | `use` → mixin、`belongs_to` → table、`apply_blueprint` → blueprint |
-| ホバー | 名詞から解決されるテーブル名 |
-| アウトライン | table / mixin / blueprint |
-| 補完 | キーワード・属性キー・型名・mixin 名・名詞 |
+| Diagnostics | syntax, resolution and warnings, before you save |
+| Go to definition | `use` to its mixin, `belongs_to` to its table, `apply_blueprint` to its blueprint |
+| Hover | the table a noun resolves to |
+| Outline | tables, mixins and blueprints |
+| Completion | keywords, attributes, type names, mixin names and nouns |
 
-VS Code 拡張はリポジトリの `editors/vscode` にある。
+The VS Code extension lives in `editors/vscode` in the repository.
 
-ドキュメント: https://misebox.github.io/nounsql
+Documentation: https://misebox.github.io/nounsql

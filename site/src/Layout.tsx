@@ -15,9 +15,7 @@ export function Layout(props: {
       <header class="topbar">
         <div class="topbar-inner">
           <a class="brand" href="./index.html">
-            <span class="brand-mark">
-              Noun<em>SQL</em>
-            </span>
+            <span class="brand-mark">NounSQL</span>
           </a>
           <nav class="topnav">
             <For each={PAGES}>

@@ -1,6 +1,6 @@
 [package]
 name = "nounsql"
-description = "NounSQL: a DSL for database schema design, compiled to PostgreSQL DDL."
+description = "NounSQL: a DSL for database schema design, compiled to SQL DDL."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

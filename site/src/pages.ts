@@ -12,7 +12,7 @@ export const PAGES: readonly Page[] = [
   { id: "spec", file: "spec.md", nav: "spec", title: "Specification — NounSQL" },
   { id: "samples", file: "", nav: "samples", title: "Samples — NounSQL" },
   { id: "playground", file: "", nav: "playground", title: "Playground — NounSQL" },
-  { id: "tooling", file: "tooling.md", nav: "internals", title: "Internals — NounSQL" },
+  { id: "tooling", file: "tooling.md", nav: "how it works", title: "How it works — NounSQL" },
 ];
 
 export function pageById(id: string): Page | undefined {

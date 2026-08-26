@@ -146,11 +146,6 @@ a:hover { color: var(--derived); }
   font-size: 1.02rem;
   letter-spacing: -0.02em;
 }
-.brand-mark em {
-  font-style: normal;
-  color: var(--derived);
-}
-
 .topnav {
   display: flex;
   gap: 1.35rem;
