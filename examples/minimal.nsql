@@ -1,27 +1,27 @@
-# 最小の構成。
+# The smallest thing that produces a schema.
 
 nouns {
-  user users "ユーザー"
-  post posts "投稿"
+  user users "A person who signs in"
+  post posts "Something a user wrote"
 }
 
 mixin base {
-  column id         type=serial      comment="主キー"
-  column created_at type=timestamptz default=eval(now()) comment="作成日時"
+  column id         type=serial      comment="Primary key"
+  column created_at type=timestamptz default=eval(now()) comment="When the row was created"
   pk id
 }
 
 table user {
-  comment "ユーザー"
+  comment "A person who signs in"
   use base
-  column email type=text comment="ログインID"
+  column email type=text comment="Used to sign in"
   index email unique
   has_many post
 }
 
 table post {
-  comment "投稿"
+  comment "Something a user wrote"
   use base
-  belongs_to user comment="投稿者"
-  column title type=text comment="表題"
+  belongs_to user comment="Who wrote it"
+  column title type=text comment="Shown in listings"
 }

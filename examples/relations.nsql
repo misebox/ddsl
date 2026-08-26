@@ -1,87 +1,89 @@
-# 関連の書き分け。
-# FK を持つ側に belongs_to、参照される側に has_many / has_one を書く。
-# 名前が衝突する場合だけ fk= / alias= / via= で明示する。
+# Which side writes what.
+# The side that holds the foreign key writes belongs_to.
+# The side being pointed at writes has_many or has_one.
+# fk=, alias= and via= only appear when names would collide.
 
 nouns {
-  user      users      "ユーザー"
-  message   messages   "メッセージ"
-  category  categories "カテゴリ"
-  profile   profiles   "プロフィール"
-  role      roles      "権限"
-  post      posts      "投稿"
-  favorite  favorites  "いいね"
-  user_role user_roles "権限付与"
+  user      users      "A person who signs in"
+  message   messages   "A direct message between two users"
+  category  categories "A grouping, possibly nested"
+  profile   profiles   "Extra details about one user"
+  role      roles      "A permission that can be granted"
+  post      posts      "Something a user wrote"
+  favorite  favorites  "A user liking a post"
+  user_role user_roles "A permission granted to a user"
 }
 
 mixin base {
-  column id         type=serial      comment="主キー"
-  column created_at type=timestamptz default=eval(now()) comment="作成日時"
+  column id         type=serial      comment="Primary key"
+  column created_at type=timestamptz default=eval(now()) comment="When the row was created"
   pk id
 }
 
 table user {
-  comment "ユーザー"
+  comment "A person who signs in"
   use base
-  column name type=text comment="表示名"
+  column name type=text comment="Shown to other users"
 
-  # 同じテーブルへ2本の参照があるので、どちらの逆側かを via= で選ぶ。
+  # Two references arrive from the same table, so via= picks which one.
   has_many message via="sender_id"   alias=noun("sent", message)
   has_many message via="receiver_id" alias=noun("received", message)
 
-  # 1対1の逆側は has_one。既定の名前は単数形になる。
+  # The far side of a one-to-one is has_one. Its default name is singular.
   has_one profile
 }
 
-# 同じテーブルを2回参照する。fk= が無いと user_id が衝突する。
+# Two references to one table. Without fk= both would want user_id.
 table message {
-  comment "メッセージ"
+  comment "A direct message between two users"
   use base
-  belongs_to user fk="sender_id"   alias="sender"   comment="送信者"
-  belongs_to user fk="receiver_id" alias="receiver" comment="受信者"
-  column body type=text comment="本文"
+  belongs_to user fk="sender_id"   alias="sender"   comment="Who sent it"
+  belongs_to user fk="receiver_id" alias="receiver" comment="Who received it"
+  column body type=text comment="What was written"
 }
 
 table profile {
-  comment "プロフィール"
+  comment "Extra details about one user"
   use base
-  unique_belongs_to user comment="持ち主"
-  column bio type=text null=true comment="自己紹介"
+  unique_belongs_to user comment="Whose profile this is"
+  column bio type=text null=true comment="Free text the user wrote"
 }
 
-# 自己参照。根には親が無いので null 許容にする。
+# A tree. Roots have no parent, so the key has to accept null.
 table category {
-  comment "カテゴリ"
+  comment "A grouping, possibly nested"
   use base
-  belongs_to category fk="parent_id" alias="parent" comment="親カテゴリ"
+  belongs_to category fk="parent_id" alias="parent" comment="The category above this one"
   override parent_id null=true
-  column name type=text comment="カテゴリ名"
+  column name type=text comment="Shown in navigation"
   has_many category via="parent_id" alias="children"
 }
 
 table post {
-  comment "投稿"
+  comment "Something a user wrote"
   use base
-  belongs_to user comment="投稿者"
-  belongs_to category comment="所属カテゴリ"
+  belongs_to user comment="Who wrote it"
+  belongs_to category comment="Where it is filed"
   override category_id null=true
-  column title type=text comment="表題"
+  column title type=text comment="Shown in listings"
 }
 
 table role {
-  comment "権限"
+  comment "A permission that can be granted"
   use base
-  column name type=text comment="権限名"
+  column name type=text comment="What the permission allows"
   index name unique
 }
 
-# 中間テーブルにカラムが要る場合は、通常のテーブルに belongs_to を2つ書く。
+# A join table that carries its own columns is an ordinary table
+# with two belongs_to.
 table user_role {
-  comment "ユーザーへの権限付与"
-  belongs_to user comment="対象のユーザー"
-  belongs_to role comment="与えた権限"
-  column granted_at type=timestamptz default=eval(now()) comment="付与日時"
+  comment "A permission granted to a user"
+  belongs_to user comment="Who was granted it"
+  belongs_to role comment="What they were granted"
+  column granted_at type=timestamptz default=eval(now()) comment="When it was granted"
   pk [user_id, role_id]
 }
 
-# カラムが要らない多対多は associate で足りる。name= で名前を決められる。
-associate(user, post, name=favorite, comment="いいね")
+# When the join carries nothing, associate is enough. name= sets the noun.
+associate(user, post, name=favorite, comment="A user liking a post")

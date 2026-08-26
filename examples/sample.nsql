@@ -16,30 +16,30 @@ constraints {
 }
 
 nouns {
-  user       users       "ユーザー"
-  category   categories  "商品カテゴリ"
-  product    products    "商品"
-  order      orders      "注文"
-  item       items       "明細"
-  order_item order_items "注文明細"
-  post       posts       "投稿"
-  profile    profiles    "プロフィール"
-  history    histories   "履歴"
-  favorite   favorites   "いいね"
+  user       users       "A person who signs in"
+  category   categories  "A grouping for products"
+  product    products    "Something for sale"
+  order      orders      "A purchase a customer placed"
+  item       items       "One line of something"
+  order_item order_items "One line of an order"
+  post       posts       "Something a user wrote"
+  profile    profiles    "Extra details about one user"
+  history    histories   "A record of a past state"
+  favorite   favorites   "A user liking a post"
 }
 
 mixin primary_key {
-  column id type=serial comment="主キー"
+  column id type=serial comment="Primary key"
   pk id
 }
 
 mixin timestamps {
-  column created_at type=timestamptz default=eval(now()) comment="作成日時"
-  column updated_at type=timestamptz default=eval(now()) on_update=eval(now()) comment="更新日時"
+  column created_at type=timestamptz default=eval(now()) comment="When the row was created"
+  column updated_at type=timestamptz default=eval(now()) on_update=eval(now()) comment="When it last changed"
 }
 
 mixin describable {
-  column note type=varchar null=true comment="備考"
+  column note type=varchar null=true comment="Anything worth noting"
 }
 
 mixin base {
@@ -48,8 +48,8 @@ mixin base {
 }
 
 mixin publishable {
-  column status       type=text                 comment="公開状態"
-  column published_at type=timestamptz null=true comment="公開日時"
+  column status       type=text                 comment="Draft, scheduled or published"
+  column published_at type=timestamptz null=true comment="When it went public"
   index status
   index published_at
 }
@@ -58,21 +58,21 @@ blueprint audited target {
   let t_history = noun(target, history)
 
   table t_history {
-    comment "${desc(target)}の変更履歴"
+    comment "Past states of a ${target}"
     use primary_key
-    belongs_to target comment="変更対象"
-    belongs_to user   comment="変更した人"
-    column version     type=integer                        comment="版番号"
-    column snapshot    type=jsonb                          comment="変更時点の内容"
-    column recorded_at type=timestamptz default=eval(now()) comment="記録日時"
+    belongs_to target comment="What changed"
+    belongs_to user   comment="Who changed it"
+    column version     type=integer                        comment="Which revision"
+    column snapshot    type=jsonb                          comment="The row as it stood"
+    column recorded_at type=timestamptz default=eval(now()) comment="When it was recorded"
   }
 }
 
 table user {
-  comment "ユーザー"
+  comment "A person who signs in"
   use base
-  column email type=text comment="ログインID"
-  column name  type=text comment="表示名"
+  column email type=text comment="Used to sign in"
+  column name  type=text comment="Shown to other users"
   index email unique
   has_many post
   has_one profile
@@ -84,44 +84,44 @@ table category {
   except updated_at
   override note       type=text null=false
   override created_at default=eval(now())
-  column name type=text comment="カテゴリ名"
+  column name type=text comment="Shown in navigation"
   index name unique
 }
 
 table product {
   use base
-  column name  type=text    comment="商品名"
-  column price type=integer comment="税抜価格（円）"
+  column name  type=text    comment="Shown to shoppers"
+  column price type=integer comment="Excluding tax, in yen"
 }
 
 table order {
   use base
-  belongs_to user comment="注文したユーザー"
+  belongs_to user comment="Who placed it"
 }
 
 table order_item {
   use base
-  belongs_to order   comment="親の注文"
-  belongs_to product comment="対象の商品"
-  column quantity type=integer comment="数量"
+  belongs_to order   comment="Which order"
+  belongs_to product comment="What was bought"
+  column quantity type=integer comment="How many"
 }
 
 table post {
   use base
   use publishable
   except index published_at
-  belongs_to user     comment="投稿者"
-  belongs_to category comment="所属カテゴリ"
-  column title type=text comment="表題"
+  belongs_to user     comment="Who wrote it"
+  belongs_to category comment="Where it is filed"
+  column title type=text comment="Shown in listings"
   index [status, created_at] unique
 }
 
 table profile {
   use base
-  unique_belongs_to user comment="持ち主"
-  column bio type=text null=true comment="自己紹介"
+  unique_belongs_to user comment="Whose profile this is"
+  column bio type=text null=true comment="Free text the user wrote"
 }
 
-associate(user, post, name=favorite, comment="いいね")
+associate(user, post, name=favorite, comment="A user liking a post")
 apply_blueprint(audited, post)
 

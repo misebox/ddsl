@@ -1,68 +1,69 @@
-# 命名規則と制約の既定値を変えると、生成されるすべての名前が変わる。
-# 人によって idx_ だったり ix_ だったりする揺れが、ここで一度に決まる。
+# Change the conventions and every generated name changes with them.
+# The choice between idx_ and ix_ is settled here, once.
 
 naming {
-  # テーブル名を単数形にする。既定は plural。
+  # Singular table names. The default is plural.
   table_name = singular
 
-  # FK 列を `author_ref` のように作る。既定は `${singular(table)}_id`。
+  # Foreign keys become author_ref. The default is ${singular(table)}_id.
   foreign_key = "${singular(table)}_ref"
 
-  # index 名。既定は idx_ / uq_ 始まり。
+  # Index names. The defaults start with idx_ and uq_.
   index = "${table}_${columns}_ix"
   unique_index = "${table}_${columns}_uq"
 
-  # index 名の中で複数列を繋ぐ文字。既定は "_"。
+  # What joins column names inside an index name. The default is "_".
   column_separator = "__"
 
-  # 複合名詞を繋ぐ文字。既定は "_"。
+  # What joins the parts of a compound noun. The default is "_".
   noun_separator = "_"
 }
 
 constraints {
-  # null= を省略したときの既定。true にすると省略が nullable になる。
+  # What a column means when null= is left out. Setting this to true
+  # makes omission mean nullable.
   null_default = true
 
-  # FK の参照動作。既定はどちらも cascade。
+  # Referential actions. Both default to cascade.
   on_delete_default = restrict
   on_update_default = no_action
 
-  # FK 列に index を自動で作るか。既定は true。
+  # Whether foreign key columns get an index. The default is true.
   foreign_key_index = false
 }
 
 nouns {
-  author  authors  "著者"
-  article articles "記事"
-  tag     tags     "タグ"
+  author  authors  "Someone who writes articles"
+  article articles "A piece of writing"
+  tag     tags     "A label attached to articles"
 }
 
 mixin base {
-  column id type=serial comment="主キー"
+  column id type=serial comment="Primary key"
   pk id
 }
 
 table author {
-  comment "著者"
+  comment "Someone who writes articles"
   use base
-  # null_default = true なので、書かない列は nullable になる。
-  column name type=text null=false comment="必須にする列は明示する"
-  column bio  type=text comment="省略したので nullable"
+  # With null_default = true, anything unmarked is nullable.
+  column name type=text null=false comment="Required, so it says so"
+  column bio  type=text comment="Left open, so it is nullable"
 }
 
 table article {
-  comment "記事"
+  comment "A piece of writing"
   use base
-  belongs_to author comment="著者への参照"
-  column title type=text null=false comment="表題"
-  column body  type=text comment="本文"
+  belongs_to author comment="Who wrote it"
+  column title type=text null=false comment="Shown in listings"
+  column body  type=text comment="The writing itself"
   index [author_ref, title] unique
 }
 
 table tag {
-  comment "タグ"
+  comment "A label attached to articles"
   use base
-  column name type=text null=false comment="タグ名"
+  column name type=text null=false comment="Shown as a chip"
   index name unique
 }
 

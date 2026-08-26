@@ -220,7 +220,7 @@ fn belongs_to_comment_lands_on_the_fk_column() {
     let orders = schema.table("orders").expect("orders");
     assert_eq!(
         orders.columns["user_id"].comment.as_deref(),
-        Some("注文したユーザー")
+        Some("Who placed it")
     );
 }
 
@@ -228,7 +228,7 @@ fn belongs_to_comment_lands_on_the_fk_column() {
 fn associate_name_and_comment_apply() {
     let (schema, _) = compile(SAMPLE);
     let t = schema.table("favorites").expect("favorites");
-    assert_eq!(t.comment.as_deref(), Some("いいね"));
+    assert_eq!(t.comment.as_deref(), Some("A user liking a post"));
     assert_eq!(t.pk, vec!["user_id", "post_id"]);
 }
 
@@ -236,7 +236,7 @@ fn associate_name_and_comment_apply() {
 fn comment_template_expands_desc() {
     let (schema, _) = compile(SAMPLE);
     let t = schema.table("post_histories").expect("post_histories");
-    assert_eq!(t.comment.as_deref(), Some("投稿の変更履歴"));
+    assert_eq!(t.comment.as_deref(), Some("Past states of a post"));
 }
 
 #[test]

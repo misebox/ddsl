@@ -9,14 +9,14 @@ export function Samples() {
 
   return (
     <>
-      <h1>サンプル</h1>
+      <h1>Samples</h1>
       <p class="page-intro">
-        すべて警告なしで通る。同じものが <code>examples/</code> にあり、
-        <a href="./playground.html">プレイグラウンド</a>で書き換えて試せる。
+        Every one compiles without warnings. The same files live in <code>examples/</code>, and the{" "}
+        <a href="./playground.html">playground</a> loads them for editing.
       </p>
 
       <div class="samples">
-        <nav class="samples-list" aria-label="サンプル">
+        <nav class="samples-list" aria-label="Samples">
           <For each={SAMPLES}>
             {(sample) => (
               <button
