@@ -1,4 +1,7 @@
 :root {
+  /* 本文とトップバー・フッタの幅を揃える。 */
+  --page-width: 78rem;
+
   --bg: #fbfbfa;
   --panel: #ffffff;
   --ink: #1b1d21;
@@ -102,17 +105,23 @@ code, pre, .brand-mark {
 
 /* ---------- ヘッダ ---------- */
 
+/* 線は画面幅いっぱい、中身は本文と同じ位置に揃える。 */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 0.75rem clamp(1rem, 4vw, 3rem);
   background: color-mix(in srgb, var(--bg) 94%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
+}
+
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: 0.75rem clamp(1rem, 4vw, 3rem);
 }
 
 .brand { text-decoration: none; }
@@ -159,7 +168,7 @@ code, pre, .brand-mark {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 15rem;
   gap: clamp(1.5rem, 4vw, 3.5rem);
-  max-width: 72rem;
+  max-width: var(--page-width);
   margin: 0 auto;
   padding: 2.5rem clamp(1rem, 4vw, 3rem) 4rem;
 }
@@ -356,10 +365,15 @@ tbody tr:hover { background: var(--code-bg); }
 
 .foot {
   border-top: 1px solid var(--line);
-  padding: 2rem clamp(1rem, 4vw, 3rem);
   color: var(--muted);
   font-size: 0.85rem;
   text-align: center;
+}
+
+.foot p {
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: 2rem clamp(1rem, 4vw, 3rem);
 }
 .foot p { margin: 0; }
 .foot strong { color: var(--ink); }
@@ -492,6 +506,7 @@ tbody tr:hover { background: var(--code-bg); }
   margin: 0;
   padding: 0.9rem 1rem;
   border: 0;
+  overscroll-behavior: contain;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.82rem;
   line-height: 1.65;
@@ -550,6 +565,7 @@ tbody tr:hover { background: var(--code-bg); }
   list-style: none;
   max-height: 12rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .pg-diags li {
@@ -585,7 +601,19 @@ tbody tr:hover { background: var(--code-bg); }
 
 .shell.is-wide {
   grid-template-columns: minmax(0, 1fr);
-  max-width: 78rem;
+  padding-top: 1.5rem;
+}
+
+/* 道具のページ。見出しに縦を取られると本体が見えない。 */
+.shell.is-wide h1 {
+  font-size: 1.4rem;
+  margin: 0 0 0.35rem;
+}
+
+.page-intro {
+  margin: 0 0 1rem;
+  font-size: 0.88rem;
+  color: var(--muted);
 }
 
 .lede {
@@ -640,6 +668,7 @@ tbody tr:hover { background: var(--code-bg); }
   padding: 1rem 1.15rem;
   max-height: 30rem;
   overflow: auto;
+  overscroll-behavior: contain;
   font-size: 0.82rem;
   line-height: 1.65;
 }
@@ -673,7 +702,7 @@ tbody tr:hover { background: var(--code-bg); }
 
 .samples-list {
   position: sticky;
-  top: 5rem;
+  top: 4.5rem;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);

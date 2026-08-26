@@ -8,7 +8,7 @@
 
 npm パッケージとドキュメントサイトのプレイグラウンドの両方がこれを使う。ブラウザ向けとバンドラ向けで要る形が違うので、出力ターゲットを分けている。
 
-```
+```sh
 wasm-pack build crates/nounsql-wasm --target web     --out-dir pkg     --release  # サイト用
 wasm-pack build crates/nounsql-wasm --target bundler --out-dir pkg-npm --release  # npm 用
 ```
@@ -19,7 +19,7 @@ wasm-pack build crates/nounsql-wasm --target bundler --out-dir pkg-npm --release
 
 ## パイプライン
 
-```
+```text
 source
  → lexer      改行を文終端とする。eval(...) の中身は括弧の対応だけ見て1トークンで抜く
  → parser     手書き再帰下降。行単位で回復して診断をまとめる
@@ -32,7 +32,7 @@ source
 
 ## ドキュメントを書くとき
 
-```
+```sh
 bin/preview
 ```
 

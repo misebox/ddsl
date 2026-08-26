@@ -13,21 +13,23 @@ export function Layout(props: {
         本文へ
       </a>
       <header class="topbar">
-        <a class="brand" href="./index.html">
-          <span class="brand-mark">NounSQL</span>
-        </a>
-        <nav class="topnav">
-          <For each={PAGES}>
-            {(page) => (
-              <a href={href(page)} class={page.id === props.page.id ? "current" : undefined}>
-                {page.nav}
-              </a>
-            )}
-          </For>
-        </nav>
-        <a class="repo" href="https://github.com/misebox/nounsql">
-          GitHub
-        </a>
+        <div class="topbar-inner">
+          <a class="brand" href="./index.html">
+            <span class="brand-mark">NounSQL</span>
+          </a>
+          <nav class="topnav">
+            <For each={PAGES}>
+              {(page) => (
+                <a href={href(page)} class={page.id === props.page.id ? "current" : undefined}>
+                  {page.nav}
+                </a>
+              )}
+            </For>
+          </nav>
+          <a class="repo" href="https://github.com/misebox/nounsql">
+            GitHub
+          </a>
+        </div>
       </header>
 
       <div class="shell" classList={{ "is-wide": props.wide }}>

@@ -98,7 +98,7 @@ export function Playground() {
   return (
     <>
       <h1>プレイグラウンド</h1>
-      <p>
+      <p class="page-intro">
         ブラウザの中でコンパイルする。入力はどこにも送られない。コンパイラは{" "}
         <a href="https://github.com/misebox/nounsql/tree/main/crates/nounsql-wasm">
           WebAssembly に落とした本体
