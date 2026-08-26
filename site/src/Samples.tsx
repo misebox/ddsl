@@ -33,11 +33,7 @@ export function Samples() {
         </nav>
 
         <section class="samples-body">
-          <h2 class="samples-title">{current().label}</h2>
           <p class="samples-summary">{current().summary}</p>
-          <ul class="samples-points">
-            <For each={current().points}>{(point) => <li>{point}</li>}</For>
-          </ul>
           <CodeTabs source={readExample(current().file)} />
         </section>
       </div>
