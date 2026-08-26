@@ -164,9 +164,13 @@ step "WebAssembly がビルドできるか"
 cargo check -q -p nounsql-wasm --target wasm32-unknown-unknown
 echo "ok"
 
-step "ドキュメントサイトが生成できるか"
-cargo run -q -p nounsql-site >/dev/null
-echo "ok"
+step "ドキュメントサイトがビルドできるか"
+if command -v bun >/dev/null; then
+  (cd site && bun install --silent >/dev/null && bun run build >/dev/null)
+  echo "ok"
+else
+  echo "  bun が無いので飛ばす"
+fi
 
 step "パッケージの中身"
 for crate in "${CRATES[@]}"; do

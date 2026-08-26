@@ -18,8 +18,8 @@
 | `crates/nounsql-core` | lexer / parser / resolver / codegen |
 | `crates/nounsql-cli` | `nounsql` コマンド |
 | `crates/nounsql-lsp` | language server |
-| `crates/nounsql-wasm` | WebAssembly バインディング（ドキュメントのプレイグラウンド） |
-| `crates/nounsql-site` | ドキュメントサイトの生成（`cargo run -p nounsql-site` → `dist/`） |
+| `crates/nounsql-wasm` | WebAssembly バインディング（npm パッケージとプレイグラウンド） |
+| `site/` | ドキュメントサイト（bun + Vite + SolidJS + marked） |
 | `editors/vscode` | VS Code 拡張（syntax highlight + LSP クライアント） |
 | `docs/nounsql.gbnf` | GBNF 文法（制約付きデコード用） |
 | `examples/` | サンプルと生成結果 |
@@ -77,9 +77,12 @@ source
 ## ドキュメント
 
 ```
-bin/preview             # 生成して配信し、変更を見て作り直す
+bin/preview             # 開発サーバ。変更は即座に反映される
+bin/preview --build     # 本番と同じものをビルドして配信する
 bin/preview --no-wasm   # WebAssembly を作り直さない。起動が速い
 ```
+
+サイトは `site/` にある。`docs/*.md` と `examples/*.nsql` を実物のまま読むので、写しを持たない。
 
 ## リリース
 

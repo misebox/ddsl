@@ -1,0 +1,22 @@
+{
+  "name": "nounsql-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "marked": "^18.0",
+    "nounsql": "file:../crates/nounsql-wasm/pkg",
+    "solid-js": "^1.9"
+  },
+  "devDependencies": {
+    "@types/node": "^26.3.0",
+    "typescript": "^5.9",
+    "vite": "^8.2",
+    "vite-plugin-solid": "^2.11"
+  }
+}

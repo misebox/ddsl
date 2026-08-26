@@ -146,15 +146,17 @@ source
 bin/preview
 ```
 
-サイトを生成してローカルで配信し、`docs/` や `crates/` の変更を見て作り直す。プレイグラウンドの WebAssembly も一緒にビルドする。
+Vite の開発サーバが立つ。`docs/*.md` を書き換えると即座に反映される。プレイグラウンドの WebAssembly も一緒にビルドする。
 
 | オプション | 内容 |
 |---|---|
 | `--port <番号>` | 既定は 4321 |
-| `--no-watch` | 一度ビルドして配信するだけ |
+| `--build` | 本番と同じものをビルドして配信する |
 | `--no-wasm` | WebAssembly を作り直さない。起動が速い |
 
-ビルドに失敗しても配信は止まらない。エラーを直せば次の監視で作り直す。
+サイトの実装は `site/` にある。`docs/*.md` と `examples/*.nsql` は写しを持たず、リポジトリの実物を `import.meta.glob` で読む。markdown の変換は marked、コードブロックの色付けは WebAssembly に落としたコンパイラ本体の字句解析を使う。
+
+ドキュメントは静的なページの方が向いているので SPA にしていない。Vite の複数ページビルドで、1ページ1 HTML を出している。
 
 ## crate 構成
 
@@ -163,6 +165,6 @@ bin/preview
 | `crates/nounsql-core` | lexer / parser / resolver / codegen |
 | `crates/nounsql-cli` | `nounsql` コマンド |
 | `crates/nounsql-lsp` | language server |
-| `crates/nounsql-site` | このドキュメントサイトの生成 |
-| `crates/nounsql-wasm` | WebAssembly バインディング（プレイグラウンド用） |
+| `crates/nounsql-wasm` | WebAssembly バインディング（npm パッケージとプレイグラウンド） |
+| `site` | ドキュメントサイト。bun + Vite + SolidJS + marked |
 | `editors/vscode` | VS Code 拡張 |

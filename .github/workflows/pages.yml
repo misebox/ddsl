@@ -33,8 +33,15 @@ jobs:
       - name: プレイグラウンドの WebAssembly をビルドする
         run: wasm-pack build crates/nounsql-wasm --target web --out-dir pkg --release
 
-      - name: サイトを生成する
-        run: cargo run -p nounsql-site
+      - uses: oven-sh/setup-bun@v2
+
+      - name: 依存をインストールする
+        run: bun install --frozen-lockfile
+        working-directory: site
+
+      - name: サイトをビルドする
+        run: bun run build
+        working-directory: site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

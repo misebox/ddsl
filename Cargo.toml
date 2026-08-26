@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/nounsql-core", "crates/nounsql-cli", "crates/nounsql-lsp", "crates/nounsql-site", "crates/nounsql-wasm"]
+members = ["crates/nounsql-core", "crates/nounsql-cli", "crates/nounsql-lsp", "crates/nounsql-wasm"]
 
 [workspace.package]
 version = "0.1.0"
