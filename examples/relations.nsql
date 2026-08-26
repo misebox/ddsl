@@ -1,5 +1,4 @@
-# テーブル間の関係の書き分け。
-#
+# 関連の書き分け。
 # FK を持つ側に belongs_to、参照される側に has_many / has_one を書く。
 # 名前が衝突する場合だけ fk= / alias= / via= で明示する。
 
@@ -15,12 +14,13 @@ nouns {
 }
 
 mixin base {
-  column id type=serial comment="主キー"
-  pk id
+  column id         type=serial      comment="主キー"
   column created_at type=timestamptz default=eval(now()) comment="作成日時"
+  pk id
 }
 
 table user {
+  comment "ユーザー"
   use base
   column name type=text comment="表示名"
 
@@ -34,6 +34,7 @@ table user {
 
 # 同じテーブルを2回参照する。fk= が無いと user_id が衝突する。
 table message {
+  comment "メッセージ"
   use base
   belongs_to user fk="sender_id"   alias="sender"   comment="送信者"
   belongs_to user fk="receiver_id" alias="receiver" comment="受信者"
@@ -41,34 +42,36 @@ table message {
 }
 
 table profile {
+  comment "プロフィール"
   use base
   unique_belongs_to user comment="持ち主"
   column bio type=text null=true comment="自己紹介"
 }
 
-# 自己参照。根には親が無いので override で null 許容にする。
+# 自己参照。根には親が無いので null 許容にする。
 table category {
+  comment "カテゴリ"
   use base
   belongs_to category fk="parent_id" alias="parent" comment="親カテゴリ"
   override parent_id null=true
-  has_many category via="parent_id" alias="children"
   column name type=text comment="カテゴリ名"
+  has_many category via="parent_id" alias="children"
 }
 
 table post {
+  comment "投稿"
   use base
   belongs_to user comment="投稿者"
-
-  # 任意の所属。override で null 許容にする。
   belongs_to category comment="所属カテゴリ"
   override category_id null=true
-
   column title type=text comment="表題"
 }
 
 table role {
+  comment "権限"
   use base
   column name type=text comment="権限名"
+  index name unique
 }
 
 # 中間テーブルにカラムが要る場合は、通常のテーブルに belongs_to を2つ書く。
@@ -76,8 +79,8 @@ table user_role {
   comment "ユーザーへの権限付与"
   belongs_to user comment="対象のユーザー"
   belongs_to role comment="与えた権限"
-  pk [user_id, role_id]
   column granted_at type=timestamptz default=eval(now()) comment="付与日時"
+  pk [user_id, role_id]
 }
 
 # カラムが要らない多対多は associate で足りる。name= で名前を決められる。

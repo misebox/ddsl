@@ -4,7 +4,7 @@ import solid from "vite-plugin-solid";
 
 // ドキュメントは静的なページの方が向いているので SPA にせず、
 // HTML を1ページ1ファイル出す。ページ間の移動は素の <a> で足りる。
-const pages = ["index", "spec", "tooling", "playground"];
+const pages = ["index", "guide", "spec", "samples", "playground", "tooling"];
 
 export default defineConfig({
   base: "./",

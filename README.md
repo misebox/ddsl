@@ -22,7 +22,7 @@
 | `site/` | ドキュメントサイト（bun + Vite + SolidJS + marked） |
 | `editors/vscode` | VS Code 拡張（syntax highlight + LSP クライアント） |
 | `docs/nounsql.gbnf` | GBNF 文法（制約付きデコード用） |
-| `examples/` | サンプルと生成結果 |
+| `examples/` | 動く例。すべて警告なしで通る |
 | `bin/preview` | ドキュメントサイトをローカルで見る |
 | `bin/release` | リリース（検査・バージョン更新・crates.io / npm 公開・push） |
 

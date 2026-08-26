@@ -1,0 +1,125 @@
+# 現実的な規模で書くとどうなるか。
+# 規約は mixin と naming にあるので、テーブル定義には差分しか出てこない。
+
+nouns {
+  customer   customers   "顧客"
+  address    addresses   "住所"
+  category   categories  "商品カテゴリ"
+  product    products    "商品"
+  variant    variants    "商品バリエーション"
+  order      orders      "注文"
+  order_item order_items "注文明細"
+  payment    payments    "支払い"
+  shipment   shipments   "配送"
+  review     reviews     "レビュー"
+}
+
+mixin base {
+  column id         type=serial      comment="主キー"
+  column created_at type=timestamptz default=eval(now()) comment="作成日時"
+  column updated_at type=timestamptz default=eval(now()) on_update=eval(now()) comment="更新日時"
+  pk id
+}
+
+# 金額はどこでも同じ持ち方にする。
+mixin money {
+  column amount   type=integer comment="金額（最小単位）"
+  column currency type=char    default="JPY" comment="通貨"
+}
+
+table customer {
+  comment "顧客"
+  use base
+  column email type=text comment="ログインID"
+  column name  type=text comment="氏名"
+  index email unique
+}
+
+table address {
+  comment "配送先住所"
+  use base
+  belongs_to customer comment="持ち主"
+  column postal_code type=text comment="郵便番号"
+  column line        type=text comment="住所"
+  index [customer_id, postal_code]
+}
+
+table category {
+  comment "商品カテゴリ"
+  use base
+  belongs_to category fk="parent_id" alias="parent" comment="親カテゴリ"
+  override parent_id null=true
+  column name type=text comment="カテゴリ名"
+  index name unique
+  has_many category via="parent_id" alias="children"
+}
+
+table product {
+  comment "商品"
+  use base
+  belongs_to category comment="所属カテゴリ"
+  column name        type=text comment="商品名"
+  column description type=text null=true comment="説明"
+  index name
+}
+
+# 同じ商品の色・サイズ違い。在庫はここで持つ。
+table variant {
+  comment "商品バリエーション"
+  use base
+  use money
+  belongs_to product comment="どの商品か"
+  column sku   type=text    comment="管理番号"
+  column stock type=integer default=0 comment="在庫数"
+  index sku unique
+}
+
+table order {
+  comment "注文"
+  use base
+  belongs_to customer comment="注文した顧客"
+  belongs_to address  comment="配送先"
+  column status     type=text        comment="注文の状態"
+  column ordered_at type=timestamptz default=eval(now()) comment="注文日時"
+  index [customer_id, ordered_at]
+  index status
+}
+
+table order_item {
+  comment "注文明細"
+  use base
+  use money
+  belongs_to order   comment="親の注文"
+  belongs_to variant comment="購入したバリエーション"
+  column quantity type=integer comment="数量"
+  index [order_id, variant_id] unique
+}
+
+table payment {
+  comment "支払い"
+  use base
+  use money
+  unique_belongs_to order comment="どの注文か"
+  column method type=text comment="支払い方法"
+  column paid_at type=timestamptz null=true comment="支払い完了日時"
+}
+
+table shipment {
+  comment "配送"
+  use base
+  belongs_to order comment="どの注文か"
+  column carrier         type=text        comment="配送業者"
+  column tracking_number type=text null=true comment="追跡番号"
+  column shipped_at      type=timestamptz null=true comment="発送日時"
+  index tracking_number
+}
+
+table review {
+  comment "レビュー"
+  use base
+  belongs_to product  comment="対象の商品"
+  belongs_to customer comment="書いた顧客"
+  column rating type=integer comment="評価（1〜5）"
+  column body   type=text null=true comment="本文"
+  index [product_id, customer_id] unique
+}
