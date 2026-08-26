@@ -1,8 +1,15 @@
 # ddsl
 
-DB設計用DSLのコンパイラ。`.ddsl` から PostgreSQL の DDL を生成する。
+[![ci](https://github.com/misebox/ddsl/actions/workflows/ci.yml/badge.svg)](https://github.com/misebox/ddsl/actions/workflows/ci.yml)
+[![pages](https://github.com/misebox/ddsl/actions/workflows/pages.yml/badge.svg)](https://github.com/misebox/ddsl/actions/workflows/pages.yml)
+[![docs](https://img.shields.io/badge/docs-misebox.github.io%2Fddsl-2f6f4f)](https://misebox.github.io/ddsl)
+[![rust](https://img.shields.io/badge/rust-edition%202024-b7410e)](https://doc.rust-lang.org/edition-guide/)
 
-仕様は [docs/spec.md](docs/spec.md)。未決の設計判断は [docs/open-questions.md](docs/open-questions.md)。
+**DDSL is a DSL** — *Data Definition Schema Language is a Domain Specific Language*。
+
+`.ddsl` から PostgreSQL の DDL を生成するコンパイラ。
+
+[ドキュメント](https://misebox.github.io/ddsl): [概要](docs/index.md) / [仕様](docs/spec.md) / [ツール](docs/tooling.md) / [未決の設計判断](docs/open-questions.md)
 
 ## 構成
 
@@ -11,6 +18,7 @@ DB設計用DSLのコンパイラ。`.ddsl` から PostgreSQL の DDL を生成�
 | `crates/ddsl-core` | lexer / parser / resolver / codegen |
 | `crates/ddsl-cli` | `ddsl` コマンド |
 | `crates/ddsl-lsp` | language server |
+| `crates/ddsl-site` | ドキュメントサイトの生成（`cargo run -p ddsl-site` → `dist/`） |
 | `editors/vscode` | VS Code 拡張（syntax highlight + LSP クライアント） |
 | `docs/ddsl.gbnf` | GBNF 文法（制約付きデコード用） |
 | `examples/` | サンプルと生成結果 |
