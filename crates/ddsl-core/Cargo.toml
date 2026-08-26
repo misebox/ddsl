@@ -11,6 +11,8 @@ rust-version.workspace = true
 keywords = ["dsl", "ddl", "schema", "sql", "postgres"]
 categories = ["database", "compilers", "parser-implementations"]
 readme = "README.md"
+# 結合テストはリポジトリの examples/ を参照するのでパッケージに含めない。
+exclude = ["tests"]
 
 [dependencies]
 indexmap = "2.12"
