@@ -2,20 +2,20 @@
 
 ## インストール
 
-```
+```sh
 cargo install nounsql        # コンパイラ
 cargo install nounsql-lsp    # language server
 ```
 
 バイナリは [Releases](https://github.com/misebox/nounsql/releases) からも取れる。JavaScript から使う場合は npm パッケージがある。
 
-```
+```sh
 npm install nounsql
 ```
 
 ## コンパイルする
 
-```
+```text
 nounsql <サブコマンド> [オプション] <入力>
 ```
 
@@ -35,7 +35,7 @@ nounsql <サブコマンド> [オプション] <入力>
 
 入力に `-` を渡すと標準入力から読む。診断は常に標準エラーに出るので、出力をパイプに繋いでも混ざらない。
 
-```
+```sh
 nounsql sql schema.nsql -o schema.sql
 cat schema.nsql | nounsql sql - > schema.sql
 nounsql check schema.nsql --deny-warnings   # CI 向け
@@ -45,7 +45,7 @@ nounsql check schema.nsql --deny-warnings   # CI 向け
 
 エラーは1回の実行でまとめて出る。1行1文なので、失敗した行を飛ばして次の文から解析を続ける。
 
-```
+```text
 error: 知らない属性キー `foo`。使えるのは type / null / default / on_update / comment
   --> schema.nsql:2:26
    2 |   column email type=text foo=1
@@ -68,7 +68,7 @@ error: 知らない属性キー `foo`。使えるのは type / null / default / 
 
 VS Code 拡張は `editors/vscode` にある。syntax highlight と LSP クライアントを含む。
 
-```
+```sh
 cd editors/vscode
 npm install
 npm run compile

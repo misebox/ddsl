@@ -10,7 +10,7 @@ export function Samples() {
   return (
     <>
       <h1>サンプル</h1>
-      <p>
+      <p class="page-intro">
         すべて警告なしで通る。同じものが <code>examples/</code> にあり、
         <a href="./playground.html">プレイグラウンド</a>で書き換えて試せる。
       </p>

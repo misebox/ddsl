@@ -433,20 +433,22 @@ constraints {
 `mixin` は1テーブルの中に閉じる。`belongs_to` は2テーブルの間を繋ぐ。それより広い範囲をまとめるのが `blueprint` で、この3つを最初から別の構文にしてあるので、名前を見れば何が生成されるのかが判る。
 
 ```
-blueprint approvable target comment="承認フロー" {
+blueprint approvable target {
   let t_approval = noun(target, approval)
   let t_step     = noun(t_approval, step)
 
   table t_approval {
+    comment "${desc(target)}の承認申請"
     use primary_key
     belongs_to target
     column status type=text
   }
 
   table t_step {
+    comment "${desc(target)}の承認段階"
     use primary_key
     belongs_to t_approval
-    column step type=integer
+    column position type=integer
   }
 }
 
