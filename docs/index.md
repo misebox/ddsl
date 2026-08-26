@@ -1,12 +1,12 @@
-# DDSL
+# NounSQL
 
-**Data Definition Schema Language is a DSL for Database Schema Design.**
+**NounSQL is a DSL for Database Schema Design.**
 
 スキーマ定義を書くと PostgreSQL の DDL が出る。
 
 ## 何を解くか
 
-DDL を直接書くと、同じ列定義・同じ制約・同じ命名規則が全テーブルに散らばる。DDSL はそれを `mixin` と命名規則にまとめ、テーブルごとの差分だけを書けるようにする。
+DDL を直接書くと、同じ列定義・同じ制約・同じ命名規則が全テーブルに散らばる。NounSQL はそれを `mixin` と命名規則にまとめ、テーブルごとの差分だけを書けるようにする。
 
 ```
 mixin base {
@@ -85,9 +85,9 @@ COMMENT ON TABLE users IS 'ユーザー';
 ## 使う
 
 ```
-git clone https://github.com/misebox/ddsl
-cd ddsl
-cargo run -p ddsl -- sql examples/sample.ddsl
+git clone https://github.com/misebox/nounsql
+cd nounsql
+cargo run -p nounsql -- sql examples/sample.nsql
 ```
 
 エディタ連携・LSP・GBNF については [ツール](tooling.md)。

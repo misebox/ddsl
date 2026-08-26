@@ -1,35 +1,35 @@
 {
-  "name": "ddsl",
-  "displayName": "DDSL",
+  "name": "nounsql",
+  "displayName": "NounSQL",
   "description": "DB設計用DSLの syntax highlight と language server",
   "version": "0.1.0",
   "engines": { "vscode": "^1.90.0" },
   "categories": ["Programming Languages"],
-  "activationEvents": ["onLanguage:ddsl"],
+  "activationEvents": ["onLanguage:nounsql"],
   "main": "./out/extension.js",
   "contributes": {
     "languages": [
       {
-        "id": "ddsl",
-        "aliases": ["DDSL"],
-        "extensions": [".ddsl"],
+        "id": "nounsql",
+        "aliases": ["NounSQL"],
+        "extensions": [".nsql"],
         "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "ddsl",
-        "scopeName": "source.ddsl",
-        "path": "./syntaxes/ddsl.tmLanguage.json"
+        "language": "nounsql",
+        "scopeName": "source.nounsql",
+        "path": "./syntaxes/nounsql.tmLanguage.json"
       }
     ],
     "configuration": {
-      "title": "DDSL",
+      "title": "NounSQL",
       "properties": {
-        "ddsl.server.path": {
+        "nounsql.server.path": {
           "type": "string",
-          "default": "ddsl-lsp",
-          "description": "ddsl-lsp 実行ファイルのパス"
+          "default": "nounsql-lsp",
+          "description": "nounsql-lsp 実行ファイルのパス"
         }
       }
     }

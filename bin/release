@@ -16,7 +16,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # 依存の順に公開する。
-CRATES=(ddsl-core ddsl-lsp ddsl)
+CRATES=(nounsql-core nounsql-lsp nounsql)
 
 usage() {
   sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
@@ -76,7 +76,7 @@ replace_in_file() {
 
 # crates.io にそのバージョンが載っているか。
 is_published() {
-  curl -sf -o /dev/null -A ddsl-release "https://crates.io/api/v1/crates/$1/$2"
+  curl -sf -o /dev/null -A nounsql-release "https://crates.io/api/v1/crates/$1/$2"
 }
 
 wait_for_index() {
@@ -142,13 +142,13 @@ step "テスト"
 cargo test
 
 step "サンプルの DDL が最新か"
-cargo run -q -p ddsl -- sql examples/sample.ddsl > examples/sample.sql
+cargo run -q -p nounsql -- sql examples/sample.nsql > examples/sample.sql
 git diff --quiet examples/sample.sql \
   || die "examples/sample.sql が古い。生成し直してコミットする"
 echo "ok"
 
 step "ドキュメントサイトが生成できるか"
-cargo run -q -p ddsl-site >/dev/null
+cargo run -q -p nounsql-site >/dev/null
 echo "ok"
 
 step "パッケージの中身"
@@ -173,7 +173,7 @@ fi
 step "バージョンを $VERSION にする"
 replace_in_file "s/^version = \"[^\"]*\"$/version = \"$VERSION\"/" Cargo.toml
 replace_in_file \
-  "s|^ddsl-core = { path = \"crates/ddsl-core\", version = \"[^\"]*\" }|ddsl-core = { path = \"crates/ddsl-core\", version = \"$VERSION\" }|" \
+  "s|^nounsql-core = { path = \"crates/nounsql-core\", version = \"[^\"]*\" }|nounsql-core = { path = \"crates/nounsql-core\", version = \"$VERSION\" }|" \
   Cargo.toml
 cargo update --workspace --quiet
 
@@ -217,8 +217,8 @@ cat <<EOF
 
 完了。
 
-  crates.io  https://crates.io/crates/ddsl
-  CI         https://github.com/misebox/ddsl/actions
+  crates.io  https://crates.io/crates/nounsql
+  CI         https://github.com/misebox/nounsql/actions
 
 タグの push で CI がバイナリをビルドし、GitHub Release を作る。
 EOF

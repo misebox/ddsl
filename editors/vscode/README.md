@@ -1,15 +1,15 @@
-# DDSL for VS Code
+# NounSQL for VS Code
 
-`.ddsl` ファイルの syntax highlight と language server。
+`.nsql` ファイルの syntax highlight と language server。
 
 ## 使い方
 
 ```
-cargo install --path ../../crates/ddsl-lsp
+cargo install --path ../../crates/nounsql-lsp
 cd editors/vscode && npm install && npm run compile
 ```
 
-`ddsl-lsp` が PATH に無い場合は設定 `ddsl.server.path` で場所を指定する。
+`nounsql-lsp` が PATH に無い場合は設定 `nounsql.server.path` で場所を指定する。
 
 ## 機能
 

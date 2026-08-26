@@ -1,0 +1,248 @@
+<h1>プレイグラウンド</h1>
+
+<p>
+  ブラウザの中でコンパイルする。入力はどこにも送られない。
+  コンパイラは <a href="https://github.com/misebox/nounsql/tree/main/crates/nounsql-wasm">WebAssembly に落とした本体</a>で、
+  CLI と同じ字句解析・解決・コード生成を使う。
+</p>
+
+<div class="pg" id="pg" data-state="loading">
+  <div class="pg-bar">
+    <label class="pg-field">
+      <span>ターゲット</span>
+      <select id="pg-dialect"></select>
+    </label>
+    <label class="pg-field">
+      <span>例</span>
+      <select id="pg-example">
+        <option value="minimal">最小</option>
+        <option value="sample">全構文</option>
+        <option value="blueprint">blueprint</option>
+      </select>
+    </label>
+    <span class="pg-status" id="pg-status">読み込み中…</span>
+  </div>
+
+  <div class="pg-panes">
+    <section class="pg-pane">
+      <header class="pg-head">ソース</header>
+      <div class="pg-editor">
+        <pre class="pg-hl" aria-hidden="true"><code id="pg-hl"></code></pre>
+        <textarea id="pg-src" spellcheck="false" autocapitalize="off"
+                  autocorrect="off" aria-label="NounSQL のソース"></textarea>
+      </div>
+    </section>
+
+    <section class="pg-pane">
+      <header class="pg-head">
+        <span>出力</span>
+        <button type="button" class="pg-copy" id="pg-copy">コピー</button>
+      </header>
+      <pre class="pg-out"><code id="pg-out"></code></pre>
+    </section>
+  </div>
+
+  <section class="pg-diags" id="pg-diags" hidden>
+    <header class="pg-head">診断</header>
+    <ul id="pg-diag-list"></ul>
+  </section>
+</div>
+
+<noscript><p>プレイグラウンドには JavaScript が要る。</p></noscript>
+
+<script type="module">
+const EXAMPLES = {
+  minimal: `nouns {
+  user users "ユーザー"
+  post posts "投稿"
+}
+
+mixin base {
+  column id type=serial comment="主キー"
+  pk id
+  column created_at type=timestamptz default=eval(now()) comment="作成日時"
+}
+
+table user {
+  comment "ユーザー"
+  use base
+  column email type=text comment="ログインID"
+  has_many post
+
+  index email unique
+}
+
+table post {
+  comment "投稿"
+  use base
+  belongs_to user comment="投稿者"
+  column title type=text comment="表題"
+}
+`,
+  blueprint: `nouns {
+  user    users     "ユーザー"
+  post    posts     "投稿"
+  history histories "履歴"
+}
+
+mixin primary_key {
+  column id type=serial
+  pk id
+}
+
+blueprint audited target {
+  let t_history = noun(target, history)
+
+  table t_history {
+    comment "\${desc(target)}の変更履歴"
+    use primary_key
+    belongs_to target comment="変更対象"
+    belongs_to user   comment="変更した人"
+    column version  type=integer comment="版番号"
+    column snapshot type=jsonb   comment="変更時点の内容"
+  }
+}
+
+table user {
+  use primary_key
+  column name type=text
+}
+
+table post {
+  use primary_key
+  belongs_to user
+  column title type=text
+}
+
+apply_blueprint(audited, post)
+`,
+};
+
+const el = (id) => document.getElementById(id);
+const root = el("pg");
+const src = el("pg-src");
+const hl = el("pg-hl");
+const out = el("pg-out");
+const status = el("pg-status");
+const diags = el("pg-diags");
+const diagList = el("pg-diag-list");
+
+let wasm = null;
+
+async function boot() {
+  try {
+    const mod = await import("./nounsql_wasm.js");
+    await mod.default();
+    wasm = mod;
+  } catch (e) {
+    root.dataset.state = "failed";
+    status.textContent = "コンパイラを読み込めなかった";
+    status.className = "pg-status is-error";
+    return;
+  }
+
+  const select = el("pg-dialect");
+  for (const name of wasm.dialects()) {
+    const option = document.createElement("option");
+    option.value = option.textContent = name;
+    select.append(option);
+  }
+
+  EXAMPLES.sample = await fetch("sample.nsql")
+    .then((r) => (r.ok ? r.text() : EXAMPLES.minimal))
+    .catch(() => EXAMPLES.minimal);
+
+  root.dataset.state = "ready";
+  src.value = EXAMPLES.minimal;
+  select.addEventListener("change", run);
+  el("pg-example").addEventListener("change", (e) => {
+    src.value = EXAMPLES[e.target.value] ?? "";
+    run();
+  });
+  src.addEventListener("input", schedule);
+  src.addEventListener("scroll", syncScroll);
+  el("pg-copy").addEventListener("click", copy);
+  run();
+}
+
+let timer = 0;
+function schedule() {
+  clearTimeout(timer);
+  timer = setTimeout(run, 120);
+}
+
+function run() {
+  if (!wasm) return;
+  const source = src.value;
+  hl.innerHTML = wasm.highlight_html(source);
+  syncScroll();
+
+  let result;
+  try {
+    result = wasm.compile(source, el("pg-dialect").value);
+  } catch (e) {
+    status.textContent = String(e);
+    status.className = "pg-status is-error";
+    return;
+  }
+
+  out.innerHTML = result.sql ? wasm.highlight_sql_html(result.sql) : "";
+  renderDiagnostics(result.diagnostics);
+
+  if (result.errors > 0) {
+    status.textContent = `エラー ${result.errors} 件`;
+    status.className = "pg-status is-error";
+  } else if (result.warnings > 0) {
+    status.textContent = `${result.tables} テーブル / ${result.columns} 列 · 警告 ${result.warnings} 件`;
+    status.className = "pg-status is-warning";
+  } else {
+    status.textContent = `${result.tables} テーブル / ${result.columns} 列`;
+    status.className = "pg-status is-ok";
+  }
+}
+
+function renderDiagnostics(list) {
+  diagList.replaceChildren();
+  diags.hidden = list.length === 0;
+  for (const d of list) {
+    const item = document.createElement("li");
+    item.className = d.severity;
+    const where = document.createElement("button");
+    where.type = "button";
+    where.className = "pg-where";
+    where.textContent = `${d.line}:${d.column}`;
+    where.addEventListener("click", () => jumpTo(d.line, d.column));
+    const text = document.createElement("span");
+    text.textContent = d.message;
+    item.append(where, text);
+    diagList.append(item);
+  }
+}
+
+function jumpTo(line, column) {
+  const lines = src.value.split("\n");
+  let offset = 0;
+  for (let i = 0; i < line - 1 && i < lines.length; i++) offset += lines[i].length + 1;
+  offset += column - 1;
+  src.focus();
+  src.setSelectionRange(offset, offset);
+}
+
+function syncScroll() {
+  hl.parentElement.scrollTop = src.scrollTop;
+  hl.parentElement.scrollLeft = src.scrollLeft;
+}
+
+async function copy() {
+  const button = el("pg-copy");
+  try {
+    await navigator.clipboard.writeText(out.textContent ?? "");
+    button.textContent = "コピーした";
+  } catch {
+    button.textContent = "コピーできない";
+  }
+  setTimeout(() => (button.textContent = "コピー"), 1500);
+}
+
+boot();
+</script>
