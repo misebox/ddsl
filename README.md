@@ -5,7 +5,9 @@
 [![docs](https://img.shields.io/badge/docs-misebox.github.io%2Fddsl-2f6f4f)](https://misebox.github.io/ddsl)
 [![rust](https://img.shields.io/badge/rust-edition%202024-b7410e)](https://doc.rust-lang.org/edition-guide/)
 
-**DDSL is a DSL for database schema design.** — *Data Definition Schema Language*
+**DDSL is a DSL for Database Schema Design.**
+
+*Data Definition Schema Language is a DSL for Database Schema Design.*
 
 `.ddsl` から PostgreSQL の DDL を生成するコンパイラ。
 
