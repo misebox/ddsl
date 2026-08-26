@@ -15,7 +15,9 @@ export function Layout(props: {
       <header class="topbar">
         <div class="topbar-inner">
           <a class="brand" href="./index.html">
-            <span class="brand-mark">NounSQL</span>
+            <span class="brand-mark">
+              Noun<em>SQL</em>
+            </span>
           </a>
           <nav class="topnav">
             <For each={PAGES}>
@@ -42,9 +44,7 @@ export function Layout(props: {
       </div>
 
       <footer class="foot">
-        <p>
-          <strong>Data Definition Schema Language</strong> is a DSL for Database Schema Design.
-        </p>
+        <p>Data Definition Schema Language is a DSL for Database Schema Design.</p>
       </footer>
     </>
   );

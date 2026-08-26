@@ -17,7 +17,7 @@ export function Toc(props: { page: Page }) {
   return (
     <Show when={headings().length > 0}>
       <nav class="toc">
-        <p class="toc-title">このページ</p>
+        <p class="toc-title">On this page</p>
         <For each={headings()}>
           {(heading) => (
             <a class={`h${heading.level}`} href={`#${heading.id}`}>

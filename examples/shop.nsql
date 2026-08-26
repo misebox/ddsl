@@ -1,125 +1,126 @@
-# 現実的な規模で書くとどうなるか。
-# 規約は mixin と naming にあるので、テーブル定義には差分しか出てこない。
+# What it looks like at a realistic size.
+# The conventions sit in mixins and naming, so each table definition
+# carries only what makes that table different.
 
 nouns {
-  customer   customers   "顧客"
-  address    addresses   "住所"
-  category   categories  "商品カテゴリ"
-  product    products    "商品"
-  variant    variants    "商品バリエーション"
-  order      orders      "注文"
-  order_item order_items "注文明細"
-  payment    payments    "支払い"
-  shipment   shipments   "配送"
-  review     reviews     "レビュー"
+  customer   customers   "Someone who buys"
+  address    addresses   "Somewhere an order can be delivered"
+  category   categories  "A grouping for products"
+  product    products    "Something for sale"
+  variant    variants    "One buyable form of a product"
+  order      orders      "A purchase a customer placed"
+  order_item order_items "One line of an order"
+  payment    payments    "Money taken for an order"
+  shipment   shipments   "A parcel sent for an order"
+  review     reviews     "What a customer thought of a product"
 }
 
 mixin base {
-  column id         type=serial      comment="主キー"
-  column created_at type=timestamptz default=eval(now()) comment="作成日時"
-  column updated_at type=timestamptz default=eval(now()) on_update=eval(now()) comment="更新日時"
+  column id         type=serial      comment="Primary key"
+  column created_at type=timestamptz default=eval(now()) comment="When the row was created"
+  column updated_at type=timestamptz default=eval(now()) on_update=eval(now()) comment="When it last changed"
   pk id
 }
 
-# 金額はどこでも同じ持ち方にする。
+# Money is held the same way everywhere it appears.
 mixin money {
-  column amount   type=integer comment="金額（最小単位）"
-  column currency type=char    default="JPY" comment="通貨"
+  column amount   type=integer comment="In the smallest unit of the currency"
+  column currency type=char    default="JPY" comment="ISO 4217 code"
 }
 
 table customer {
-  comment "顧客"
+  comment "Someone who buys"
   use base
-  column email type=text comment="ログインID"
-  column name  type=text comment="氏名"
+  column email type=text comment="Used to sign in"
+  column name  type=text comment="Shown on receipts"
   index email unique
 }
 
 table address {
-  comment "配送先住所"
+  comment "Somewhere an order can be delivered"
   use base
-  belongs_to customer comment="持ち主"
-  column postal_code type=text comment="郵便番号"
-  column line        type=text comment="住所"
+  belongs_to customer comment="Whose address this is"
+  column postal_code type=text comment="Used to work out shipping"
+  column line        type=text comment="The rest of the address"
   index [customer_id, postal_code]
 }
 
 table category {
-  comment "商品カテゴリ"
+  comment "A grouping for products"
   use base
-  belongs_to category fk="parent_id" alias="parent" comment="親カテゴリ"
+  belongs_to category fk="parent_id" alias="parent" comment="The category above this one"
   override parent_id null=true
-  column name type=text comment="カテゴリ名"
+  column name type=text comment="Shown in navigation"
   index name unique
   has_many category via="parent_id" alias="children"
 }
 
 table product {
-  comment "商品"
+  comment "Something for sale"
   use base
-  belongs_to category comment="所属カテゴリ"
-  column name        type=text comment="商品名"
-  column description type=text null=true comment="説明"
+  belongs_to category comment="Where it is filed"
+  column name        type=text comment="Shown to shoppers"
+  column description type=text null=true comment="Longer copy for the product page"
   index name
 }
 
-# 同じ商品の色・サイズ違い。在庫はここで持つ。
+# Colour and size variations of one product. Stock lives here.
 table variant {
-  comment "商品バリエーション"
+  comment "One buyable form of a product"
   use base
   use money
-  belongs_to product comment="どの商品か"
-  column sku   type=text    comment="管理番号"
-  column stock type=integer default=0 comment="在庫数"
+  belongs_to product comment="Which product this varies"
+  column sku   type=text    comment="How the warehouse refers to it"
+  column stock type=integer default=0 comment="How many are on hand"
   index sku unique
 }
 
 table order {
-  comment "注文"
+  comment "A purchase a customer placed"
   use base
-  belongs_to customer comment="注文した顧客"
-  belongs_to address  comment="配送先"
-  column status     type=text        comment="注文の状態"
-  column ordered_at type=timestamptz default=eval(now()) comment="注文日時"
+  belongs_to customer comment="Who placed it"
+  belongs_to address  comment="Where it goes"
+  column status     type=text        comment="Where the order stands"
+  column ordered_at type=timestamptz default=eval(now()) comment="When it was placed"
   index [customer_id, ordered_at]
   index status
 }
 
 table order_item {
-  comment "注文明細"
+  comment "One line of an order"
   use base
   use money
-  belongs_to order   comment="親の注文"
-  belongs_to variant comment="購入したバリエーション"
-  column quantity type=integer comment="数量"
+  belongs_to order   comment="Which order"
+  belongs_to variant comment="What was bought"
+  column quantity type=integer comment="How many"
   index [order_id, variant_id] unique
 }
 
 table payment {
-  comment "支払い"
+  comment "Money taken for an order"
   use base
   use money
-  unique_belongs_to order comment="どの注文か"
-  column method type=text comment="支払い方法"
-  column paid_at type=timestamptz null=true comment="支払い完了日時"
+  unique_belongs_to order comment="Which order was paid for"
+  column method  type=text        comment="How it was paid"
+  column paid_at type=timestamptz null=true comment="When it cleared"
 }
 
 table shipment {
-  comment "配送"
+  comment "A parcel sent for an order"
   use base
-  belongs_to order comment="どの注文か"
-  column carrier         type=text        comment="配送業者"
-  column tracking_number type=text null=true comment="追跡番号"
-  column shipped_at      type=timestamptz null=true comment="発送日時"
+  belongs_to order comment="Which order it fulfils"
+  column carrier         type=text           comment="Who is carrying it"
+  column tracking_number type=text null=true comment="What the carrier calls it"
+  column shipped_at      type=timestamptz null=true comment="When it left"
   index tracking_number
 }
 
 table review {
-  comment "レビュー"
+  comment "What a customer thought of a product"
   use base
-  belongs_to product  comment="対象の商品"
-  belongs_to customer comment="書いた顧客"
-  column rating type=integer comment="評価（1〜5）"
-  column body   type=text null=true comment="本文"
+  belongs_to product  comment="What was reviewed"
+  belongs_to customer comment="Who reviewed it"
+  column rating type=integer comment="One to five"
+  column body   type=text null=true comment="What they wrote"
   index [product_id, customer_id] unique
 }

@@ -1,76 +1,77 @@
-# mixin は1テーブルの中で閉じる。テーブルをまたぐ構造は blueprint で書く。
+# A mixin stays inside one table. A blueprint covers a group of them.
 #
-# 「承認フロー」は3つのテーブルが互いを参照して初めて成立する。
-# これを1つの名前で持てるので、どのテーブル群が1つの仕組みなのかが構造から判る。
+# An approval flow is three tables that only mean something together.
+# Holding them under one name shows which tables form one mechanism,
+# and lets the same mechanism be attached to another noun.
 
 nouns {
-  user     users     "ユーザー"
-  post     posts     "投稿"
-  product  products  "商品"
-  approval approvals "承認"
-  step     steps     "承認段階"
-  note     notes     "コメント"
+  user     users     "A person who signs in"
+  post     posts     "Something a user wrote"
+  product  products  "Something for sale"
+  approval approvals "A request to publish"
+  step     steps     "One stage of a request"
+  note     notes     "A remark left on a stage"
 }
 
 mixin base {
-  column id         type=serial      comment="主キー"
-  column created_at type=timestamptz default=eval(now()) comment="作成日時"
+  column id         type=serial      comment="Primary key"
+  column created_at type=timestamptz default=eval(now()) comment="When the row was created"
   pk id
 }
 
 blueprint approvable target {
-  # let は名詞を束縛する。次の let がそれをさらに合成できる。
+  # `let` binds a noun. The next `let` can build on it.
   let t_approval = noun(target, approval)   # post_approvals
   let t_step     = noun(t_approval, step)   # post_approval_steps
   let t_note     = noun(t_step, note)       # post_approval_step_notes
 
   table t_approval {
-    comment "${desc(target)}の承認申請"
+    comment "A request to publish a ${target}"
     use base
-    belongs_to target comment="対象"
-    belongs_to user fk="requester_id" alias="requester" comment="申請者"
-    column status type=text comment="申請の状態"
+    belongs_to target comment="What is being approved"
+    belongs_to user fk="requester_id" alias="requester" comment="Who asked"
+    column status type=text comment="Where the request stands"
     index status
   }
 
   table t_step {
-    comment "${desc(target)}の承認段階"
+    comment "One stage of approving a ${target}"
     use base
-    belongs_to t_approval comment="どの申請か"
-    belongs_to user fk="approver_id" alias="approver" comment="承認者"
-    column position type=integer comment="何段階目か"
-    column decision type=text    comment="判断"
+    belongs_to t_approval comment="Which request"
+    belongs_to user fk="approver_id" alias="approver" comment="Who decides"
+    column position type=integer comment="Order within the request"
+    column decision type=text    comment="What they decided"
     index [approver_id, decision]
   }
 
   table t_note {
-    comment "${desc(target)}の承認コメント"
+    comment "A remark left while approving a ${target}"
     use base
-    belongs_to t_step comment="どの段階か"
-    belongs_to user   comment="書いた人"
-    column body type=text comment="本文"
+    belongs_to t_step comment="Which stage"
+    belongs_to user   comment="Who left it"
+    column body type=text comment="What they wrote"
   }
 }
 
 table user {
-  comment "ユーザー"
+  comment "A person who signs in"
   use base
-  column name type=text comment="表示名"
+  column name type=text comment="Shown to other users"
 }
 
 table post {
-  comment "投稿"
+  comment "Something a user wrote"
   use base
-  belongs_to user comment="投稿者"
-  column title type=text comment="表題"
+  belongs_to user comment="Who wrote it"
+  column title type=text comment="Shown in listings"
 }
 
 table product {
-  comment "商品"
+  comment "Something for sale"
   use base
-  column name type=text comment="商品名"
+  column name type=text comment="Shown to shoppers"
 }
 
-# 同じ仕組みを別の名詞に適用する。名前も説明も target から決まる。
+# The same mechanism on two different nouns. Names and comments follow target.
 apply_blueprint(approvable, post)
 apply_blueprint(approvable, product)

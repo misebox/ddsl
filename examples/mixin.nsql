@@ -1,66 +1,64 @@
-# mixin は1テーブルの中に閉じた規約をまとめる。
-# use は書いた位置に展開されるので、列の並びは読んだとおりになる。
+# A mixin holds conventions that stay inside one table.
+# `use` expands where it is written, so columns land in reading order.
 
 nouns {
-  user     users      "ユーザー"
-  article  articles   "記事"
-  category categories "カテゴリ"
+  user     users      "A person who signs in"
+  article  articles   "A piece of writing"
+  category categories "A grouping for articles"
 }
 
 mixin identity {
-  column id type=serial comment="主キー"
+  column id type=serial comment="Primary key"
   pk id
 }
 
 mixin timestamps {
-  column created_at type=timestamptz default=eval(now()) comment="作成日時"
-  column updated_at type=timestamptz default=eval(now()) on_update=eval(now()) comment="更新日時"
+  column created_at type=timestamptz default=eval(now()) comment="When the row was created"
+  column updated_at type=timestamptz default=eval(now()) on_update=eval(now()) comment="When it last changed"
 }
 
 mixin publishable {
-  column status       type=text                  comment="公開状態"
-  column published_at type=timestamptz null=true comment="公開日時"
+  column status       type=text                  comment="Draft, scheduled or published"
+  column published_at type=timestamptz null=true comment="When it went public"
   index status
   index published_at
 }
 
-# mixin は他の mixin を取り込める。
+# Mixins compose.
 mixin base {
   use identity
   use timestamps
 }
 
 table user {
-  comment "ユーザー"
+  comment "A person who signs in"
   use base
-  column email type=text comment="ログインID"
+  column email type=text comment="Used to sign in"
   index email unique
 }
 
 table article {
-  comment "記事"
+  comment "A piece of writing"
   use base
   use publishable
 
-  # 公開日で一覧しないので、この索引だけ外す。列は残る。
+  # Articles are never listed by date, so drop that index. The column stays.
   except index published_at
 
-  belongs_to user comment="著者"
-  column title type=text comment="表題"
+  belongs_to user comment="Who wrote it"
+  column title type=text comment="Shown in listings"
 }
 
-# 取り込んだものは調整できる。
-# override は指定した属性だけを差し替え、他は mixin のまま残す。
 table category {
-  comment "カテゴリ"
+  comment "A grouping for articles"
   use base
 
-  # 主キーを bigserial に。comment は mixin の値のまま残る。
+  # Widen the key. Everything else about the column stays as the mixin set it.
   override id type=bigserial
 
-  # 更新しない台帳なので更新日時を外す。
+  # A category is never edited in place, so it has no updated_at.
   except updated_at
 
-  column name type=text comment="カテゴリ名"
+  column name type=text comment="Shown in navigation"
   index name unique
 }

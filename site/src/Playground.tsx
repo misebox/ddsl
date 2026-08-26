@@ -61,13 +61,14 @@ export function Playground() {
   };
 
   function status(): { text: string; kind: string } {
-    if (failed()) return { text: "コンパイラを読み込めなかった", kind: "is-error" };
+    if (failed()) return { text: "compiler failed to load", kind: "is-error" };
     if (error()) return { text: error(), kind: "is-error" };
     const r = result();
-    if (!r) return { text: "読み込み中…", kind: "" };
-    if (r.errors > 0) return { text: `エラー ${r.errors} 件`, kind: "is-error" };
-    const size = `${r.tables} テーブル / ${r.columns} 列`;
-    if (r.warnings > 0) return { text: `${size} · 警告 ${r.warnings} 件`, kind: "is-warning" };
+    if (!r) return { text: "loading", kind: "" };
+    if (r.errors > 0) return { text: `${r.errors} error${r.errors > 1 ? "s" : ""}`, kind: "is-error" };
+    const size = `${r.tables} tables · ${r.columns} columns`;
+    if (r.warnings > 0)
+      return { text: `${size} · ${r.warnings} warning${r.warnings > 1 ? "s" : ""}`, kind: "is-warning" };
     return { text: size, kind: "is-ok" };
   }
 
@@ -86,7 +87,7 @@ export function Playground() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      setError("クリップボードに書けなかった");
+      setError("could not write to the clipboard");
     }
   }
 
@@ -97,14 +98,14 @@ export function Playground() {
 
   return (
     <>
-      <h1>プレイグラウンド</h1>
+      <h1>Playground</h1>
       <p class="page-intro">
-        ブラウザの中でコンパイルする。入力はどこにも送られない。コンパイラは{" "}
+        Compiles in the browser. Nothing you type is sent anywhere. It runs the{" "}
         <a href="https://github.com/misebox/nounsql/tree/main/crates/nounsql-wasm">
-          WebAssembly に落とした本体
+          compiler itself, built to WebAssembly
         </a>
-        で、CLI と同じ字句解析・解決・コード生成を使う。
-        例の説明は<a href="./samples.html">サンプル</a>にある。
+        — the same lexer, resolver and code generator the CLI uses. The examples are described on
+        the <a href="./samples.html">samples</a> page.
       </p>
 
       <div class="pg" data-state={failed() ? "failed" : wasm() ? "ready" : "loading"}>
@@ -136,7 +137,7 @@ export function Playground() {
           </div>
 
           <label class="pg-field">
-            <span>ターゲット</span>
+            <span>target</span>
             <select value={dialect()} onChange={(e) => setDialect(e.currentTarget.value)}>
               <For each={wasm()?.dialects() ?? ["postgres"]}>
                 {(name) => <option value={name}>{name}</option>}
@@ -146,7 +147,7 @@ export function Playground() {
 
           <Show when={pane() === "output"}>
             <button type="button" class="pg-copy" onClick={copySql}>
-              {copied() ? "コピーした" : "DDL をコピー"}
+              {copied() ? "Copied" : "Copy DDL"}
             </button>
           </Show>
 
@@ -163,7 +164,7 @@ export function Playground() {
               spellcheck={false}
               autocapitalize="off"
               autocorrect="off"
-              aria-label="NounSQL のソース"
+              aria-label="NounSQL source"
               value={source()}
               onInput={(e) => setSource(e.currentTarget.value)}
               onScroll={syncScroll}
@@ -179,7 +180,7 @@ export function Playground() {
 
         <Show when={(result()?.diagnostics.length ?? 0) > 0}>
           <section class="pg-diags">
-            <header class="pg-head">診断</header>
+            <header class="pg-head">Diagnostics</header>
             <ul>
               <For each={result()!.diagnostics}>
                 {(d) => (

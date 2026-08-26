@@ -51,12 +51,14 @@ export function CodeTabs(props: { source: string; dialect?: string }) {
           aria-selected={pane() === "output"}
           onClick={() => setPane("output")}
         >
-          生成される DDL
+          Generated DDL
         </button>
         <Show when={result()}>
           {(r) => (
             <span class="tabs-note">
-              {r().errors > 0 ? `エラー ${r().errors} 件` : `${r().tables} テーブル / ${r().columns} 列`}
+              {r().errors > 0
+                ? `${r().errors} error${r().errors > 1 ? "s" : ""}`
+                : `${r().tables} tables · ${r().columns} columns`}
             </span>
           )}
         </Show>
