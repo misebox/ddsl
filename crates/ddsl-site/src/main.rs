@@ -34,12 +34,6 @@ const PAGES: &[Page] = &[
         title: "ツール",
         nav: "ツール",
     },
-    Page {
-        source: "open-questions.md",
-        output: "open-questions.html",
-        title: "未決の設計判断",
-        nav: "未決事項",
-    },
 ];
 
 struct Heading {

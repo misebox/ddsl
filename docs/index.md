@@ -90,5 +90,3 @@ cargo run -p ddsl -- build examples/sample.ddsl
 ## 状態
 
 v0.1。PostgreSQL 対応。出力ターゲットは `--dialect` で選ぶ（既定 `postgres`）。
-
-決まっていないことは [未決の設計判断](open-questions.md) にまとめてある。
