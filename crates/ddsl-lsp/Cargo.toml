@@ -1,7 +1,16 @@
 [package]
 name = "ddsl-lsp"
+description = "Language server for DDSL: diagnostics, go-to-definition, hover, and completion."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+keywords = ["dsl", "lsp", "language-server", "schema", "sql"]
+categories = ["database", "development-tools", "command-line-utilities"]
+readme = "README.md"
 
 [dependencies]
 ddsl-core.workspace = true
