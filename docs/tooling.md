@@ -9,7 +9,7 @@ cargo run -p ddsl -- <サブコマンド> [--dialect <名前>] <入力>
 | サブコマンド | 出力 |
 |---|---|
 | `check` | 診断のみ。エラーがなければ件数を表示する |
-| `build` | DDL |
+| `sql` | DDL |
 | `ir` | 中間表現（intermediate representation）。mixin と blueprint を展開し、テーブル名・FK列名・index名を確定させた状態のスキーマ |
 | `ast` | 構文木 |
 

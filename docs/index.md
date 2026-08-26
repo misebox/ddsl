@@ -82,7 +82,7 @@ COMMENT ON TABLE users IS 'ユーザー';
 ```
 git clone https://github.com/misebox/ddsl
 cd ddsl
-cargo run -p ddsl -- build examples/sample.ddsl
+cargo run -p ddsl -- sql examples/sample.ddsl
 ```
 
 エディタ連携・LSP・GBNF については [ツール](tooling.md)。
