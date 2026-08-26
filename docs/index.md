@@ -1,8 +1,8 @@
 # DDSL
 
-**DDSL is a DSL for database schema design.**
+**DDSL is a DSL for Database Schema Design.**
 
-*Data Definition Schema Language*
+*Data Definition Schema Language is a DSL for Database Schema Design.*
 
 スキーマ定義を書くと PostgreSQL の DDL が出る。
 
