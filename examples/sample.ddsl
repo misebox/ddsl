@@ -1,0 +1,126 @@
+naming {
+  table_name = plural
+  primary_key = "id"
+  foreign_key = "${singular(table)}_id"
+  join_table = "${singular(a)}_${singular(b)}"
+  name_join = "${singular(a)}_${plural(b)}"
+  index = "idx_${table}_${columns}"
+  unique_index = "uq_${table}_${columns}"
+  column_separator = "_"
+}
+
+constraints {
+  null_default = false
+  on_delete_default = cascade
+  on_update_default = cascade
+  foreign_key_index = true
+}
+
+entities {
+  user       users       "ユーザー"
+  category   categories  "商品カテゴリ"
+  product    products    "商品"
+  order      orders      "注文"
+  item       items       "明細"
+  order_item order_items "注文明細"
+  post       posts       "投稿"
+  profile    profiles    "プロフィール"
+  history    histories   "履歴"
+}
+
+mixin primary_key {
+  column id type=serial
+  pk id
+}
+
+mixin timestamps {
+  column created_at type=timestamptz default=eval(now())
+  column updated_at type=timestamptz default=eval(now()) on_update=eval(now())
+}
+
+mixin describable {
+  column note type=varchar null=true
+}
+
+mixin base {
+  use primary_key
+  use timestamps
+}
+
+mixin publishable {
+  column status       type=text
+  column published_at type=timestamptz null=true
+
+  index status
+  index published_at
+}
+
+blueprint audited target comment="変更履歴" {
+  let t_history = name_join(target, history)
+
+  table t_history {
+    use primary_key
+    belongs_to target
+    belongs_to user
+    column version     type=integer
+    column snapshot    type=jsonb
+    column recorded_at type=timestamptz default=eval(now())
+  }
+}
+
+table user comment="ユーザー" {
+  use base
+  column email type=text comment="ログインID"
+  column name  type=text
+
+  index email unique
+}
+
+table category {
+  use base
+  use describable
+  override note       type=text null=false
+  override created_at default=eval(now())
+  except updated_at
+  column name type=text
+
+  index name unique
+}
+
+table product {
+  use base
+  column name  type=text
+  column price type=integer
+}
+
+table order {
+  use base
+  belongs_to user
+}
+
+table order_item {
+  use base
+  belongs_to order
+  belongs_to product
+  column quantity type=integer
+}
+
+table post {
+  use base
+  use publishable
+  except index published_at
+  belongs_to user
+  belongs_to category
+  column title type=text
+
+  index [status, created_at] unique
+}
+
+table profile {
+  use base
+  unique_belongs_to user
+  column bio type=text null=true
+}
+
+associate(user, post)
+apply_blueprint(audited, post)
