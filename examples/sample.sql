@@ -73,10 +73,10 @@ CREATE TABLE post_histories (
   CONSTRAINT post_histories_pkey PRIMARY KEY (id)
 );
 
-CREATE TABLE user_posts (
+CREATE TABLE favorites (
   user_id integer NOT NULL,
   post_id integer NOT NULL,
-  CONSTRAINT user_posts_pkey PRIMARY KEY (user_id, post_id)
+  CONSTRAINT favorites_pkey PRIMARY KEY (user_id, post_id)
 );
 
 CREATE UNIQUE INDEX uq_users_email ON users (email);
@@ -100,8 +100,8 @@ ALTER TABLE posts ADD CONSTRAINT posts_category_id_fkey FOREIGN KEY (category_id
 ALTER TABLE profiles ADD CONSTRAINT profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE post_histories ADD CONSTRAINT post_histories_post_id_fkey FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE post_histories ADD CONSTRAINT post_histories_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE user_posts ADD CONSTRAINT user_posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE user_posts ADD CONSTRAINT user_posts_post_id_fkey FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE favorites ADD CONSTRAINT favorites_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE favorites ADD CONSTRAINT favorites_post_id_fkey FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE ON UPDATE CASCADE;
 
 CREATE OR REPLACE FUNCTION users_updated_at_on_update() RETURNS trigger AS $$
 BEGIN
@@ -190,11 +190,11 @@ COMMENT ON COLUMN profiles.created_at IS '作成日時';
 COMMENT ON COLUMN profiles.updated_at IS '更新日時';
 COMMENT ON COLUMN profiles.user_id IS '持ち主';
 COMMENT ON COLUMN profiles.bio IS '自己紹介';
-COMMENT ON TABLE post_histories IS '変更履歴';
+COMMENT ON TABLE post_histories IS '投稿の変更履歴';
 COMMENT ON COLUMN post_histories.id IS '主キー';
 COMMENT ON COLUMN post_histories.post_id IS '変更対象';
 COMMENT ON COLUMN post_histories.user_id IS '変更した人';
 COMMENT ON COLUMN post_histories.version IS '版番号';
 COMMENT ON COLUMN post_histories.snapshot IS '変更時点の内容';
 COMMENT ON COLUMN post_histories.recorded_at IS '記録日時';
-COMMENT ON TABLE user_posts IS 'いいね';
+COMMENT ON TABLE favorites IS 'いいね';

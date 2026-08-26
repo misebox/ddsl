@@ -87,6 +87,8 @@ pub struct Relation {
 
 #[derive(Debug, Clone)]
 pub enum Member {
+    /// `comment "..."`。テーブルの説明。
+    Comment(Spanned<String>),
     Column(Column),
     Pk(Vec<Name>),
     Index(Index),
@@ -100,7 +102,6 @@ pub enum Member {
 #[derive(Debug, Clone)]
 pub struct Table {
     pub name: Name,
-    pub comment: Option<Spanned<String>>,
     pub members: Vec<Spanned<Member>>,
     pub span: Span,
 }
@@ -108,7 +109,6 @@ pub struct Table {
 #[derive(Debug, Clone)]
 pub struct Mixin {
     pub name: Name,
-    pub comment: Option<Spanned<String>>,
     pub members: Vec<Spanned<Member>>,
     pub span: Span,
 }
@@ -129,7 +129,6 @@ pub enum BlueprintItem {
 pub struct Blueprint {
     pub name: Name,
     pub params: Vec<Name>,
-    pub comment: Option<Spanned<String>>,
     pub items: Vec<BlueprintItem>,
     pub span: Span,
 }
@@ -138,7 +137,9 @@ pub struct Blueprint {
 pub struct MacroCall {
     pub name: Name,
     pub args: Vec<Name>,
-    /// 生成するテーブルのコメント。
+    /// 生成するテーブルの名詞。`associate` のみ。
+    pub table_name: Option<Spanned<Value>>,
+    /// 生成するテーブルのコメント。`associate` のみ。
     pub comment: Option<Spanned<String>>,
     pub span: Span,
 }

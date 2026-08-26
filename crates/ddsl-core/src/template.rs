@@ -56,9 +56,9 @@ fn parse_expr(expr: &str) -> Result<Seg, String> {
                 .strip_suffix(')')
                 .ok_or_else(|| format!("`{expr}` の括弧が閉じられていない"))?;
             let func = func.trim();
-            if !matches!(func, "singular" | "plural") {
+            if !matches!(func, "singular" | "plural" | "desc") {
                 return Err(format!(
-                    "テンプレートで使える関数は singular / plural のみ。`{func}` は使えない"
+                    "テンプレートで使える関数は singular / plural / desc のみ。`{func}` は使えない"
                 ));
             }
             Ok(Seg::Call {

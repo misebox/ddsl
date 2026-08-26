@@ -20,6 +20,12 @@ struct Bail;
 type PResult<T> = Result<T, Bail>;
 
 const ATTR_KEYS: &[&str] = &["type", "null", "default", "on_update", "comment"];
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BlockKind {
+    Table,
+    Mixin,
+}
+
 const RELATION_KEYS: &[&str] = &["fk", "alias", "via", "comment"];
 const VALUE_FNS: &[&str] = &["noun", "singular", "plural"];
 
@@ -331,11 +337,9 @@ impl Parser {
     fn mixin_block(&mut self) -> PResult<Mixin> {
         let start = self.expect_ident("`mixin`")?.span;
         let name = self.expect_ident("mixin名")?;
-        let comment = self.opt_comment_attr()?;
-        let (members, end) = self.member_block()?;
+        let (members, end) = self.member_block(BlockKind::Mixin)?;
         Ok(Mixin {
             name,
-            comment,
             members,
             span: start.join(end),
         })
@@ -344,27 +348,15 @@ impl Parser {
     fn table_block(&mut self) -> PResult<Table> {
         let start = self.expect_ident("`table`")?.span;
         let name = self.expect_ident("テーブル名")?;
-        let comment = self.opt_comment_attr()?;
-        let (members, end) = self.member_block()?;
+        let (members, end) = self.member_block(BlockKind::Table)?;
         Ok(Table {
             name,
-            comment,
             members,
             span: start.join(end),
         })
     }
 
-    fn opt_comment_attr(&mut self) -> PResult<Option<Spanned<String>>> {
-        if self.at_keyword("comment") && *self.peek_at(1) == Tok::Eq {
-            self.bump();
-            self.bump();
-            Ok(Some(self.expect_string("コメント文字列")?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn member_block(&mut self) -> PResult<(Vec<Spanned<Member>>, Span)> {
+    fn member_block(&mut self, kind: BlockKind) -> PResult<(Vec<Spanned<Member>>, Span)> {
         if self.expect(Tok::LBrace).is_err() {
             self.recover_block();
             return Err(Bail);
@@ -376,7 +368,7 @@ impl Parser {
                 break;
             }
             let start = self.span();
-            match self.member() {
+            match self.member(kind) {
                 Ok(m) => {
                     let span = start.join(self.prev_span());
                     members.push(Spanned::new(m, span));
@@ -391,13 +383,24 @@ impl Parser {
         Ok((members, end))
     }
 
-    fn member(&mut self) -> PResult<Member> {
+    fn member(&mut self, kind: BlockKind) -> PResult<Member> {
         let Tok::Ident(kw) = self.peek().clone() else {
             let span = self.span();
             let found = self.peek().describe();
             return Err(self.error(span, format!("宣言文が必要。{found} が来た")));
         };
         match kw.as_str() {
+            "comment" => {
+                self.bump();
+                let text = self.expect_string("コメント（文字列）")?;
+                if kind != BlockKind::Table {
+                    self.diags.push(Diagnostic::error(
+                        text.span,
+                        "`comment` は `table` にしか書けない",
+                    ));
+                }
+                Ok(Member::Comment(text))
+            }
             "column" => {
                 self.bump();
                 let name = self.expect_ident("カラム名")?;
@@ -594,13 +597,9 @@ impl Parser {
         let start = self.expect_ident("`blueprint`")?.span;
         let name = self.expect_ident("blueprint名")?;
         let mut params = Vec::new();
-        while let Tok::Ident(p) = self.peek().clone() {
-            if p == "comment" && *self.peek_at(1) == Tok::Eq {
-                break;
-            }
+        while matches!(self.peek(), Tok::Ident(_)) {
             params.push(self.expect_ident("引数名")?);
         }
-        let comment = self.opt_comment_attr()?;
 
         if self.expect(Tok::LBrace).is_err() {
             self.recover_block();
@@ -641,7 +640,6 @@ impl Parser {
         Ok(Blueprint {
             name,
             params,
-            comment,
             items,
             span: start.join(end),
         })
@@ -662,6 +660,7 @@ impl Parser {
         let start = name.span;
         self.expect(Tok::LParen)?;
         let mut args = Vec::new();
+        let mut table_name = None;
         let mut comment = None;
         loop {
             if self.at(&Tok::RParen) {
@@ -671,15 +670,25 @@ impl Parser {
             if matches!(self.peek(), Tok::Ident(_)) && *self.peek_at(1) == Tok::Eq {
                 let key = self.expect_ident("キー")?;
                 self.expect(Tok::Eq)?;
-                let value = self.expect_string("コメント（文字列）")?;
-                if key.value != "comment" {
+                let duplicated = match key.value.as_str() {
+                    "name" => table_name.replace(self.value()?).is_some(),
+                    "comment" => comment
+                        .replace(self.expect_string("コメント（文字列）")?)
+                        .is_some(),
+                    other => {
+                        self.diags.push(Diagnostic::error(
+                            key.span,
+                            format!("知らないキー `{other}`。使えるのは name / comment"),
+                        ));
+                        self.value()?;
+                        false
+                    }
+                };
+                if duplicated {
                     self.diags.push(Diagnostic::error(
                         key.span,
-                        format!("知らないキー `{}`。使えるのは comment", key.value),
+                        format!("`{}` が重複している", key.value),
                     ));
-                } else if comment.replace(value).is_some() {
-                    self.diags
-                        .push(Diagnostic::error(key.span, "`comment` が重複している"));
                 }
             } else {
                 args.push(self.expect_ident("引数")?);
@@ -692,6 +701,7 @@ impl Parser {
         Ok(MacroCall {
             name,
             args,
+            table_name,
             comment,
             span: start.join(end),
         })

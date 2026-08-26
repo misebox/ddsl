@@ -81,8 +81,15 @@ fn blueprint_generates_table_via_name_join() {
 }
 
 #[test]
-fn associate_makes_composite_pk_and_plural_name() {
-    let (schema, _) = compile(SAMPLE);
+fn associate_defaults_to_the_joined_plural_name() {
+    let src = concat!(
+        "nouns {\n  user users \"u\"\n  post posts \"p\"\n}\n",
+        "mixin base {\n  column id type=serial\n  pk id\n}\n",
+        "table user {\n  use base\n}\ntable post {\n  use base\n}\n",
+        "associate(user, post)\n"
+    );
+    let (schema, diags) = compile(src);
+    assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
     let t = schema.table("user_posts").expect("user_posts");
     assert_eq!(t.pk, vec!["user_id", "post_id"]);
 }
@@ -218,10 +225,62 @@ fn belongs_to_comment_lands_on_the_fk_column() {
 }
 
 #[test]
-fn associate_comment_lands_on_the_table() {
+fn associate_name_and_comment_apply() {
     let (schema, _) = compile(SAMPLE);
-    let t = schema.table("user_posts").expect("user_posts");
+    let t = schema.table("favorites").expect("favorites");
     assert_eq!(t.comment.as_deref(), Some("いいね"));
+    assert_eq!(t.pk, vec!["user_id", "post_id"]);
+}
+
+#[test]
+fn comment_template_expands_desc() {
+    let (schema, _) = compile(SAMPLE);
+    let t = schema.table("post_histories").expect("post_histories");
+    assert_eq!(t.comment.as_deref(), Some("投稿の変更履歴"));
+}
+
+#[test]
+fn table_comment_wins_over_the_dictionary() {
+    let src = concat!(
+        "nouns {\n  user users \"辞書の説明\"\n}\n",
+        "table user {\n  comment \"テーブルの説明\"\n",
+        "  column id type=serial\n  pk id\n}\n"
+    );
+    let (schema, _) = compile(src);
+    assert_eq!(
+        schema.table("users").expect("users").comment.as_deref(),
+        Some("テーブルの説明")
+    );
+}
+
+#[test]
+fn rejects_comment_in_a_mixin() {
+    let src = "mixin m {\n  comment \"だめ\"\n}\n";
+    let (_, diags) = compile(src);
+    assert!(
+        errors(&diags)
+            .iter()
+            .any(|m| m.contains("`table` にしか書けない")),
+        "{:?}",
+        errors(&diags)
+    );
+}
+
+#[test]
+fn blueprint_argument_must_be_a_registered_noun() {
+    let src = concat!(
+        "nouns {\n  post posts \"投稿\"\n}\n",
+        "mixin base {\n  column id type=serial\n  pk id\n}\n",
+        "blueprint b target {\n  let t = noun(target, post)\n",
+        "  table t {\n    use base\n  }\n}\n",
+        "apply_blueprint(b, unknown)\n"
+    );
+    let (_, diags) = compile(src);
+    assert!(
+        errors(&diags).iter().any(|m| m.contains("名詞に限る")),
+        "{:?}",
+        errors(&diags)
+    );
 }
 
 #[test]

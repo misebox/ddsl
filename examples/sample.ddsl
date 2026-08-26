@@ -25,6 +25,7 @@ nouns {
   post       posts       "投稿"
   profile    profiles    "プロフィール"
   history    histories   "履歴"
+  favorite   favorites   "いいね"
 }
 
 mixin primary_key {
@@ -54,10 +55,11 @@ mixin publishable {
   index published_at
 }
 
-blueprint audited target comment="変更履歴" {
+blueprint audited target {
   let t_history = noun(target, history)
 
-  table t_history comment="変更履歴" {
+  table t_history {
+    comment "${desc(target)}の変更履歴"
     use primary_key
     belongs_to target comment="変更対象"
     belongs_to user   comment="変更した人"
@@ -67,7 +69,8 @@ blueprint audited target comment="変更履歴" {
   }
 }
 
-table user comment="ユーザー" {
+table user {
+  comment "ユーザー"
   use base
   column email type=text comment="ログインID"
   column name  type=text comment="表示名"
@@ -123,5 +126,6 @@ table profile {
   column bio type=text null=true comment="自己紹介"
 }
 
-associate(user, post, comment="いいね")
+associate(user, post, name=favorite, comment="いいね")
 apply_blueprint(audited, post)
+
