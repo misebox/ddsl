@@ -71,7 +71,15 @@ fn main() -> Result<()> {
     // Jekyll に処理させない。
     fs::write(out.join(".nojekyll"), "")?;
     copy_if_exists(&root.join("docs/nounsql.gbnf"), &out.join("nounsql.gbnf"))?;
-    copy_if_exists(&root.join("examples/sample.nsql"), &out.join("sample.nsql"))?;
+    // プレイグラウンドが読む例。examples/ にあるものを全部渡す。
+    for entry in fs::read_dir(root.join("examples")).context("examples を読めない")? {
+        let path = entry?.path();
+        if path.extension().is_some_and(|e| e == "nsql")
+            && let Some(name) = path.file_name()
+        {
+            fs::copy(&path, out.join(name))?;
+        }
+    }
 
     // プレイグラウンド用の WebAssembly。無ければページ側で読み込み失敗を表示する。
     let pkg = root.join("crates/nounsql-wasm/pkg");

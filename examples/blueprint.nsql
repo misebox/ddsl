@@ -1,0 +1,75 @@
+# blueprint は複数テーブルにまたがる構造をまとめて作る。
+#
+# ここでは「承認フロー」を1つの blueprint にしている。適用するたびに
+# 3テーブルが生成され、それぞれが前のテーブルを参照する。
+
+nouns {
+  user     users     "ユーザー"
+  post     posts     "投稿"
+  product  products  "商品"
+  approval approvals "承認"
+  step     steps     "承認段階"
+  note     notes     "コメント"
+}
+
+mixin base {
+  column id type=serial comment="主キー"
+  pk id
+  column created_at type=timestamptz default=eval(now()) comment="作成日時"
+}
+
+blueprint approvable target {
+  # let は名詞を束縛する。次の let がそれをさらに合成できる。
+  let t_approval = noun(target, approval)   # post_approvals
+  let t_step     = noun(t_approval, step)   # post_approval_steps
+  let t_note     = noun(t_step, note)       # post_approval_step_notes
+
+  table t_approval {
+    comment "${desc(target)}の承認申請"
+    use base
+    belongs_to target comment="対象"
+    belongs_to user   fk="requester_id" alias="requester" comment="申請者"
+    column status type=text comment="申請の状態"
+
+    index status
+  }
+
+  table t_step {
+    comment "${desc(target)}の承認段階"
+    use base
+    belongs_to t_approval comment="どの申請か"
+    belongs_to user fk="approver_id" alias="approver" comment="承認者"
+    column position type=integer comment="何段階目か"
+    column decision type=text    comment="判断"
+
+    index [approver_id, decision]
+  }
+
+  table t_note {
+    comment "${desc(target)}の承認コメント"
+    use base
+    belongs_to t_step comment="どの段階か"
+    belongs_to user   comment="書いた人"
+    column body type=text comment="本文"
+  }
+}
+
+table user {
+  use base
+  column name type=text comment="表示名"
+}
+
+table post {
+  use base
+  belongs_to user comment="投稿者"
+  column title type=text comment="表題"
+}
+
+table product {
+  use base
+  column name type=text comment="商品名"
+}
+
+# 同じ blueprint を別の名詞に適用すると、別の3テーブルができる。
+apply_blueprint(approvable, post)
+apply_blueprint(approvable, product)

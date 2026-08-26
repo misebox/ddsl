@@ -1,0 +1,29 @@
+# 最小の例。nouns に語を登録し、mixin で共通の列をまとめ、
+# belongs_to で関係を書く。これだけで DDL が出る。
+
+nouns {
+  user users "ユーザー"
+  post posts "投稿"
+}
+
+mixin base {
+  column id type=serial comment="主キー"
+  pk id
+  column created_at type=timestamptz default=eval(now()) comment="作成日時"
+}
+
+table user {
+  comment "ユーザー"
+  use base
+  column email type=text comment="ログインID"
+  has_many post
+
+  index email unique
+}
+
+table post {
+  comment "投稿"
+  use base
+  belongs_to user comment="投稿者"
+  column title type=text comment="表題"
+}

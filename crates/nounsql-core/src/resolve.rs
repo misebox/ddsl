@@ -492,7 +492,26 @@ impl<'a> Resolver<'a> {
                 .and_then(|n| n.comment.clone()),
         };
 
+        // `except` で消えたFK列があれば、その関連も消える。黙って消すと気づけない。
+        for spec in &relations {
+            if !columns.contains_key(&spec.column) {
+                self.diags.push(Diagnostic::warning(
+                    spec.span,
+                    format!(
+                        "FK列 `{}` が除外されたので `{}` の関連が消えた",
+                        spec.column, spec.target.value
+                    ),
+                ));
+            }
+        }
         relations.retain(|r| columns.contains_key(&r.column));
+
+        if pk.is_empty() && !columns.is_empty() {
+            self.diags.push(Diagnostic::warning(
+                p.ast.name.span,
+                format!("`{}` に主キーが無い", p.name),
+            ));
+        }
 
         if self.dialect.is_reserved(&p.name) {
             self.diags.push(Diagnostic::warning(

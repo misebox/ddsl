@@ -9,6 +9,11 @@
 DDL を直接書くと、同じ列定義・同じ制約・同じ命名規則が全テーブルに散らばる。NounSQL はそれを `mixin` と命名規則にまとめ、テーブルごとの差分だけを書けるようにする。
 
 ```
+nouns {
+  user users "ユーザー"
+  post posts "投稿"
+}
+
 mixin base {
   column id type=serial
   pk id
@@ -29,7 +34,7 @@ table post {
 }
 ```
 
-これが次の DDL になる。FK 列 `user_id`、その型、index 名は書いていない。命名規則から決まる。
+これが次の DDL になる。FK 列 `user_id`、その型、index 名、テーブル名の複数形は書いていない。`nouns` に登録した名詞と命名規則から決まる。
 
 ```sql
 CREATE TABLE users (
@@ -50,10 +55,10 @@ CREATE TABLE posts (
 CREATE UNIQUE INDEX uq_users_email ON users (email);
 CREATE INDEX idx_posts_user_id ON posts (user_id);
 
-ALTER TABLE posts ADD CONSTRAINT posts_user_id_fkey
-  FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE posts ADD CONSTRAINT posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE;
 
 COMMENT ON TABLE users IS 'ユーザー';
+COMMENT ON TABLE posts IS '投稿';
 ```
 
 ## 言語の要素
@@ -81,6 +86,16 @@ COMMENT ON TABLE users IS 'ユーザー';
 ## 試す
 
 [プレイグラウンド](playground.html)でそのまま動かせる。ブラウザの中でコンパイルするので、入力はどこにも送られない。
+
+| 例 | 何を見るか |
+|---|---|
+| 最小 | `nouns` / `mixin` / `belongs_to` だけの構成 |
+| 関連 | 同一テーブルへの複数参照、自己参照、複合主キー |
+| blueprint | 1回の適用で3テーブルを作る |
+| config | 命名規則と制約の既定値を変えると出力がどう変わるか |
+| 全構文 | 仕様に出てくる構文をすべて含む |
+
+`examples/` に同じものが置いてある。
 
 ## 使う
 

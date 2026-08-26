@@ -104,7 +104,8 @@ fn create_table(dialect: Dialect, table: &Table) -> String {
     let mut lines: Vec<String> = Vec::new();
     for col in table.columns.values() {
         let mut line = format!("  {} {}", quote(&col.name), col.ty);
-        if !col.null {
+        // 主キーの列は定義上 NOT NULL。null_default に関わらず明示する。
+        if !col.null || table.pk.contains(&col.name) {
             line.push_str(" NOT NULL");
         }
         if let Some(d) = &col.default {

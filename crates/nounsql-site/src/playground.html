@@ -7,39 +7,33 @@
 </p>
 
 <div class="pg" id="pg" data-state="loading">
+  <nav class="pg-samples" id="pg-samples" aria-label="サンプル"></nav>
+
   <div class="pg-bar">
+    <div class="pg-tabs" role="tablist">
+      <button type="button" role="tab" class="pg-tab is-on" data-pane="src"
+              aria-selected="true">ソース</button>
+      <button type="button" role="tab" class="pg-tab" data-pane="out"
+              aria-selected="false">出力<span class="pg-badge" id="pg-badge" hidden></span></button>
+    </div>
     <label class="pg-field">
       <span>ターゲット</span>
       <select id="pg-dialect"></select>
     </label>
-    <label class="pg-field">
-      <span>例</span>
-      <select id="pg-example">
-        <option value="minimal">最小</option>
-        <option value="sample">全構文</option>
-        <option value="blueprint">blueprint</option>
-      </select>
-    </label>
+    <button type="button" class="pg-copy" id="pg-copy" hidden>DDL をコピー</button>
     <span class="pg-status" id="pg-status">読み込み中…</span>
   </div>
 
-  <div class="pg-panes">
-    <section class="pg-pane">
-      <header class="pg-head">ソース</header>
-      <div class="pg-editor">
-        <pre class="pg-hl" aria-hidden="true"><code id="pg-hl"></code></pre>
-        <textarea id="pg-src" spellcheck="false" autocapitalize="off"
-                  autocorrect="off" aria-label="NounSQL のソース"></textarea>
-      </div>
-    </section>
+  <div class="pg-pane" data-pane="src">
+    <div class="pg-editor">
+      <pre class="pg-hl" aria-hidden="true"><code id="pg-hl"></code></pre>
+      <textarea id="pg-src" spellcheck="false" autocapitalize="off"
+                autocorrect="off" aria-label="NounSQL のソース"></textarea>
+    </div>
+  </div>
 
-    <section class="pg-pane">
-      <header class="pg-head">
-        <span>出力</span>
-        <button type="button" class="pg-copy" id="pg-copy">コピー</button>
-      </header>
-      <pre class="pg-out"><code id="pg-out"></code></pre>
-    </section>
+  <div class="pg-pane" data-pane="out" hidden>
+    <pre class="pg-out"><code id="pg-out"></code></pre>
   </div>
 
   <section class="pg-diags" id="pg-diags" hidden>
@@ -51,72 +45,14 @@
 <noscript><p>プレイグラウンドには JavaScript が要る。</p></noscript>
 
 <script type="module">
-const EXAMPLES = {
-  minimal: `nouns {
-  user users "ユーザー"
-  post posts "投稿"
-}
-
-mixin base {
-  column id type=serial comment="主キー"
-  pk id
-  column created_at type=timestamptz default=eval(now()) comment="作成日時"
-}
-
-table user {
-  comment "ユーザー"
-  use base
-  column email type=text comment="ログインID"
-  has_many post
-
-  index email unique
-}
-
-table post {
-  comment "投稿"
-  use base
-  belongs_to user comment="投稿者"
-  column title type=text comment="表題"
-}
-`,
-  blueprint: `nouns {
-  user    users     "ユーザー"
-  post    posts     "投稿"
-  history histories "履歴"
-}
-
-mixin primary_key {
-  column id type=serial
-  pk id
-}
-
-blueprint audited target {
-  let t_history = noun(target, history)
-
-  table t_history {
-    comment "\${desc(target)}の変更履歴"
-    use primary_key
-    belongs_to target comment="変更対象"
-    belongs_to user   comment="変更した人"
-    column version  type=integer comment="版番号"
-    column snapshot type=jsonb   comment="変更時点の内容"
-  }
-}
-
-table user {
-  use primary_key
-  column name type=text
-}
-
-table post {
-  use primary_key
-  belongs_to user
-  column title type=text
-}
-
-apply_blueprint(audited, post)
-`,
-};
+// examples/ に置いてある実物を読む。ここには説明だけを持つ。
+const SAMPLES = [
+  { file: "minimal.nsql", label: "最小", note: "nouns / mixin / belongs_to" },
+  { file: "relations.nsql", label: "関連", note: "複数参照・自己参照・複合主キー" },
+  { file: "blueprint.nsql", label: "blueprint", note: "1回の適用で3テーブル" },
+  { file: "config.nsql", label: "config", note: "命名規則と制約を変える" },
+  { file: "sample.nsql", label: "全構文", note: "仕様の構文をすべて含む" },
+];
 
 const el = (id) => document.getElementById(id);
 const root = el("pg");
@@ -124,6 +60,7 @@ const src = el("pg-src");
 const hl = el("pg-hl");
 const out = el("pg-out");
 const status = el("pg-status");
+const badge = el("pg-badge");
 const diags = el("pg-diags");
 const diagList = el("pg-diag-list");
 
@@ -134,7 +71,7 @@ async function boot() {
     const mod = await import("./nounsql_wasm.js");
     await mod.default();
     wasm = mod;
-  } catch (e) {
+  } catch {
     root.dataset.state = "failed";
     status.textContent = "コンパイラを読み込めなかった";
     status.className = "pg-status is-error";
@@ -148,21 +85,59 @@ async function boot() {
     select.append(option);
   }
 
-  EXAMPLES.sample = await fetch("sample.nsql")
-    .then((r) => (r.ok ? r.text() : EXAMPLES.minimal))
-    .catch(() => EXAMPLES.minimal);
-
+  buildSampleList();
   root.dataset.state = "ready";
-  src.value = EXAMPLES.minimal;
   select.addEventListener("change", run);
-  el("pg-example").addEventListener("change", (e) => {
-    src.value = EXAMPLES[e.target.value] ?? "";
-    run();
-  });
   src.addEventListener("input", schedule);
   src.addEventListener("scroll", syncScroll);
   el("pg-copy").addEventListener("click", copy);
+  for (const tab of document.querySelectorAll(".pg-tab")) {
+    tab.addEventListener("click", () => showPane(tab.dataset.pane));
+  }
+  await load(SAMPLES[0]);
+}
+
+function buildSampleList() {
+  const nav = el("pg-samples");
+  for (const sample of SAMPLES) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "pg-sample";
+    item.dataset.file = sample.file;
+    item.innerHTML =
+      `<span class="pg-sample-label"></span><span class="pg-sample-note"></span>`;
+    item.querySelector(".pg-sample-label").textContent = sample.label;
+    item.querySelector(".pg-sample-note").textContent = sample.note;
+    item.addEventListener("click", () => load(sample));
+    nav.append(item);
+  }
+}
+
+async function load(sample) {
+  for (const item of document.querySelectorAll(".pg-sample")) {
+    item.classList.toggle("is-on", item.dataset.file === sample.file);
+  }
+  try {
+    const res = await fetch(sample.file);
+    src.value = res.ok ? await res.text() : `# ${sample.file} を読めなかった\n`;
+  } catch {
+    src.value = `# ${sample.file} を読めなかった\n`;
+  }
+  src.scrollTop = 0;
   run();
+}
+
+function showPane(name) {
+  for (const tab of document.querySelectorAll(".pg-tab")) {
+    const on = tab.dataset.pane === name;
+    tab.classList.toggle("is-on", on);
+    tab.setAttribute("aria-selected", String(on));
+  }
+  for (const pane of document.querySelectorAll(".pg-pane")) {
+    pane.hidden = pane.dataset.pane !== name;
+  }
+  el("pg-copy").hidden = name !== "out";
+  if (name === "src") src.focus();
 }
 
 let timer = 0;
@@ -188,6 +163,10 @@ function run() {
 
   out.innerHTML = result.sql ? wasm.highlight_sql_html(result.sql) : "";
   renderDiagnostics(result.diagnostics);
+
+  // 出力タブを見ていなくてもエラー件数が判るようにする。
+  badge.hidden = result.errors === 0;
+  badge.textContent = String(result.errors);
 
   if (result.errors > 0) {
     status.textContent = `エラー ${result.errors} 件`;
@@ -220,12 +199,12 @@ function renderDiagnostics(list) {
 }
 
 function jumpTo(line, column) {
+  showPane("src");
   const lines = src.value.split("\n");
   let offset = 0;
   for (let i = 0; i < line - 1 && i < lines.length; i++) offset += lines[i].length + 1;
-  offset += column - 1;
   src.focus();
-  src.setSelectionRange(offset, offset);
+  src.setSelectionRange(offset + column - 1, offset + column - 1);
 }
 
 function syncScroll() {
@@ -241,7 +220,7 @@ async function copy() {
   } catch {
     button.textContent = "コピーできない";
   }
-  setTimeout(() => (button.textContent = "コピー"), 1500);
+  setTimeout(() => (button.textContent = "DDL をコピー"), 1500);
 }
 
 boot();
