@@ -2,10 +2,10 @@
 #
 # ドキュメントサイトをローカルで見る。
 #
-#   bin/preview                  ビルドして配信し、変更を見て作り直す
-#   bin/preview --port 8080      ポートを変える
-#   bin/preview --no-watch       一度ビルドして配信するだけ
-#   bin/preview --no-wasm        WebAssembly を作り直さない（プレイグラウンドは古いまま）
+#   bin/preview                開発サーバを立てる。変更は即座に反映される
+#   bin/preview --port 8080    ポートを変える
+#   bin/preview --build        本番と同じものをビルドして配信する
+#   bin/preview --no-wasm      WebAssembly を作り直さない
 #
 # 停止は Ctrl-C。
 set -euo pipefail
@@ -13,12 +13,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PORT=4321
-WATCH=yes
+MODE=dev
 BUILD_WASM=yes
-
-# サイトの内容に影響するもの。
-DOC_PATHS=(docs examples)
-CODE_PATHS=(crates)
+WASM_OUT=crates/nounsql-wasm/pkg
 
 usage() {
   sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
@@ -36,86 +33,35 @@ log() {
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --port)     PORT=${2:-} ; [ -n "$PORT" ] || die "--port に番号が要る"; shift 2 ;;
-    --no-watch) WATCH=no; shift ;;
-    --no-wasm)  BUILD_WASM=no; shift ;;
-    -h|--help)  usage ;;
-    *)          die "知らないオプション: $1" ;;
+    --port)    PORT=${2:-}; [ -n "$PORT" ] || die "--port に番号が要る"; shift 2 ;;
+    --build)   MODE=build; shift ;;
+    --no-wasm) BUILD_WASM=no; shift ;;
+    -h|--help) usage ;;
+    *)         die "知らないオプション: $1" ;;
   esac
 done
 
-command -v python3 >/dev/null || die "python3 が無い。配信に使う"
-if [ "$BUILD_WASM" = yes ]; then
-  command -v wasm-pack >/dev/null \
-    || die "wasm-pack が無い。--no-wasm で飛ばせる（プレイグラウンドは動かない）"
-fi
+command -v bun >/dev/null || die "bun が無い"
 
-# 失敗しても die しない。監視中に落とされると使いにくい。
-build_wasm() {
+# サイトは pkg を file: 依存として参照するので、無いと install も通らない。
+if [ "$BUILD_WASM" = yes ] || [ ! -f "$WASM_OUT/nounsql_wasm_bg.wasm" ]; then
+  command -v wasm-pack >/dev/null || die "wasm-pack が無い。--no-wasm で飛ばせる"
   log "WebAssembly をビルドする"
-  wasm-pack build crates/nounsql-wasm --target web --out-dir pkg --release >/dev/null 2>&1
-}
-
-build_site() {
-  log "サイトを生成する"
-  cargo run -q -p nounsql-site >/dev/null
-}
-
-# 失敗しても配信は続ける。書きかけで落とされると使いにくい。
-rebuild() {
-  local kind=$1
-  if [ "$kind" = code ] && [ "$BUILD_WASM" = yes ]; then
-    build_wasm || log "WebAssembly のビルドに失敗した"
-  fi
-  build_site || log "サイトの生成に失敗した"
-  echo "  $(date +%H:%M:%S) 更新した"
-}
-
-# 最初のビルド。pkg が無ければ --no-wasm でも作る。
-if [ "$BUILD_WASM" = yes ] || [ ! -f crates/nounsql-wasm/pkg/nounsql_wasm_bg.wasm ]; then
-  if command -v wasm-pack >/dev/null; then
-    build_wasm || die "wasm-pack build に失敗した"
-  else
-    log "wasm-pack が無いのでプレイグラウンドは動かない"
-  fi
-fi
-build_site
-
-python3 -m http.server "$PORT" --bind 127.0.0.1 --directory dist >/dev/null 2>&1 &
-SERVER=$!
-trap 'kill "$SERVER" 2>/dev/null || true' EXIT INT TERM
-
-cat <<EOF
-
-  http://127.0.0.1:$PORT/
-
-  概要         /index.html
-  仕様         /spec.html
-  ツール       /tooling.html
-  プレイグラウンド /playground.html
-
-EOF
-
-if [ "$WATCH" = no ]; then
-  log "Ctrl-C で止める"
-  wait "$SERVER"
-  exit 0
+  wasm-pack build crates/nounsql-wasm --target web --out-dir pkg --release >/dev/null 2>&1 \
+    || die "wasm-pack build に失敗した"
 fi
 
-log "変更を見ている。Ctrl-C で止める"
-stamp=$(mktemp)
-trap 'kill "$SERVER" 2>/dev/null || true; rm -f "$stamp"' EXIT INT TERM
+if [ ! -d site/node_modules ]; then
+  log "依存をインストールする"
+  (cd site && bun install >/dev/null)
+fi
 
-# 1秒ごとに更新を探す。外部の監視ツールに頼らない。
-while sleep 1; do
-  kill -0 "$SERVER" 2>/dev/null || die "配信が止まった。ポート $PORT が塞がっているかもしれない"
+if [ "$MODE" = build ]; then
+  log "ビルドする"
+  (cd site && bun run build >/dev/null)
+  log "http://127.0.0.1:$PORT/  （Ctrl-C で止める）"
+  exec bun run --cwd site vite preview --port "$PORT" --strictPort --outDir ../dist
+fi
 
-  if [ -n "$(find "${CODE_PATHS[@]}" -type f -name '*.rs' -newer "$stamp" -print -quit 2>/dev/null)" ] \
-    || [ -n "$(find "${CODE_PATHS[@]}" -type f \( -name '*.html' -o -name '*.css' \) -newer "$stamp" -print -quit 2>/dev/null)" ]; then
-    touch "$stamp"
-    rebuild code
-  elif [ -n "$(find "${DOC_PATHS[@]}" -type f -newer "$stamp" -print -quit 2>/dev/null)" ]; then
-    touch "$stamp"
-    rebuild docs
-  fi
-done
+log "http://127.0.0.1:$PORT/  （Ctrl-C で止める）"
+exec bun run --cwd site vite --port "$PORT" --strictPort
