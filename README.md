@@ -22,7 +22,7 @@
 | `editors/vscode` | VS Code 拡張（syntax highlight + LSP クライアント） |
 | `docs/ddsl.gbnf` | GBNF 文法（制約付きデコード用） |
 | `examples/` | サンプルと生成結果 |
-| `scripts/release.sh` | リリースの準備（検査・バージョン更新・タグ） |
+| `bin/release` | リリース（検査・バージョン更新・crates.io 公開・push） |
 
 ## インストール
 
@@ -70,12 +70,16 @@ source
 ## リリース
 
 ```
-scripts/release.sh 0.2.0 --check   # 検査のみ
-scripts/release.sh 0.2.0           # バージョン更新・コミット・タグ
+bin/release 0.2.0 --check   # 検査のみ、何も書き換えない
+bin/release 0.2.0           # 検査 → バージョン更新 → crates.io 公開 → push
 ```
 
-タグを push すると CI がバイナリをビルドし、GitHub Release を作り、crates.io に公開する。
-crates.io への公開には `CARGO_REGISTRY_TOKEN` をリポジトリの secret に登録しておく。
+`CARGO_REGISTRY_TOKEN` に crates.io の API トークンを入れておく。cargo が直接読む変数。
+
+公開は `ddsl-core` → `ddsl-lsp` → `ddsl` の順に行い、後続がレジストリで解決できるまで待つ。
+公開済みのバージョンは飛ばすので、途中で失敗しても再実行できる。
+
+タグの push で CI がバイナリをビルドし、GitHub Release を作る。
 
 ## ライセンス
 
