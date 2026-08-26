@@ -28,17 +28,17 @@ nouns {
 }
 
 mixin primary_key {
-  column id type=serial
+  column id type=serial comment="主キー"
   pk id
 }
 
 mixin timestamps {
-  column created_at type=timestamptz default=eval(now())
-  column updated_at type=timestamptz default=eval(now()) on_update=eval(now())
+  column created_at type=timestamptz default=eval(now()) comment="作成日時"
+  column updated_at type=timestamptz default=eval(now()) on_update=eval(now()) comment="更新日時"
 }
 
 mixin describable {
-  column note type=varchar null=true
+  column note type=varchar null=true comment="備考"
 }
 
 mixin base {
@@ -47,8 +47,8 @@ mixin base {
 }
 
 mixin publishable {
-  column status       type=text
-  column published_at type=timestamptz null=true
+  column status       type=text                  comment="公開状態"
+  column published_at type=timestamptz null=true  comment="公開日時"
 
   index status
   index published_at
@@ -57,20 +57,20 @@ mixin publishable {
 blueprint audited target comment="変更履歴" {
   let t_history = noun(target, history)
 
-  table t_history {
+  table t_history comment="変更履歴" {
     use primary_key
     belongs_to target
     belongs_to user
-    column version     type=integer
-    column snapshot    type=jsonb
-    column recorded_at type=timestamptz default=eval(now())
+    column version     type=integer                        comment="版番号"
+    column snapshot    type=jsonb                          comment="変更時点の内容"
+    column recorded_at type=timestamptz default=eval(now()) comment="記録日時"
   }
 }
 
 table user comment="ユーザー" {
   use base
   column email type=text comment="ログインID"
-  column name  type=text
+  column name  type=text comment="表示名"
   has_many post
   has_one profile
 
@@ -83,15 +83,15 @@ table category {
   override note       type=text null=false
   override created_at default=eval(now())
   except updated_at
-  column name type=text
+  column name type=text comment="カテゴリ名"
 
   index name unique
 }
 
 table product {
   use base
-  column name  type=text
-  column price type=integer
+  column name  type=text    comment="商品名"
+  column price type=integer comment="税抜価格（円）"
 }
 
 table order {
@@ -103,7 +103,7 @@ table order_item {
   use base
   belongs_to order
   belongs_to product
-  column quantity type=integer
+  column quantity type=integer comment="数量"
 }
 
 table post {
@@ -112,7 +112,7 @@ table post {
   except index published_at
   belongs_to user
   belongs_to category
-  column title type=text
+  column title type=text comment="表題"
 
   index [status, created_at] unique
 }
@@ -120,7 +120,7 @@ table post {
 table profile {
   use base
   unique_belongs_to user
-  column bio type=text null=true
+  column bio type=text null=true comment="自己紹介"
 }
 
 associate(user, post)
