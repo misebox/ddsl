@@ -10,7 +10,7 @@ cargo run -p ddsl -- <サブコマンド> [--dialect <名前>] <入力>
 |---|---|
 | `check` | 診断のみ。エラーがなければ件数を表示する |
 | `build` | DDL |
-| `ir` | 解決済みスキーマ（テーブル名・FK列名・index名が確定した状態） |
+| `ir` | 中間表現（intermediate representation）。mixin と blueprint を展開し、テーブル名・FK列名・index名を確定させた状態のスキーマ |
 | `ast` | 構文木 |
 
 `--dialect` は出力ターゲットを選ぶ。既定は `postgres`。型名・予約語・FK の型解決はターゲットが持つ。
@@ -63,7 +63,7 @@ source
  → lexer      改行を文終端とする。eval(...) の中身は括弧の対応だけ見て1トークンで抜く
  → parser     手書き再帰下降。行単位で回復して診断をまとめる
  → resolver   blueprint展開 → mixin展開 → relation展開 → 命名解決
- → ir         テーブル名・FK列名・index名が確定したスキーマ
+ → ir         中間表現。mixin と blueprint が消え、名前がすべて確定したスキーマ
  → codegen    ターゲットごとの DDL
 ```
 

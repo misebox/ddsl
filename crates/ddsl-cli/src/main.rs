@@ -21,7 +21,7 @@ enum Command {
     Check { input: PathBuf },
     /// 構文木をデバッグ出力する
     Ast { input: PathBuf },
-    /// 解決済みスキーマをデバッグ出力する
+    /// 中間表現（解決済みスキーマ）をデバッグ出力する
     Ir { input: PathBuf },
     /// PostgreSQL の DDL を出力する
     Build { input: PathBuf },
