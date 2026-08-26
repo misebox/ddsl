@@ -9,6 +9,8 @@
 
 `.ddsl` から PostgreSQL の DDL を生成するコンパイラ。
 
+[ドキュメント](https://misebox.github.io/ddsl): [概要](docs/index.md) / [仕様](docs/spec.md) / [ツール](docs/tooling.md)
+
 ## 構成
 
 | パス | 内容 |
