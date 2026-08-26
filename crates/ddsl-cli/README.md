@@ -16,7 +16,13 @@ ddsl sql schema.ddsl
 | `ir` | 中間表現（解決済みスキーマ） |
 | `ast` | 構文木 |
 
-出力ターゲットは `--dialect` で選ぶ（既定 `postgres`）。
+| オプション | 内容 |
+|---|---|
+| `--dialect <名前>` | 出力ターゲット。既定 `postgres` |
+| `-o, --output <PATH>` | 出力先。省略すると標準出力 |
+| `--deny-warnings` | 警告があっても失敗させる |
+
+入力に `-` を渡すと標準入力から読む。
 
 ```
 mixin base {

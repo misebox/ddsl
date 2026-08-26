@@ -3,7 +3,7 @@
 ## CLI
 
 ```
-cargo run -p ddsl -- <サブコマンド> [--dialect <名前>] <入力>
+ddsl <サブコマンド> [オプション] <入力>
 ```
 
 | サブコマンド | 出力 |
@@ -13,7 +13,19 @@ cargo run -p ddsl -- <サブコマンド> [--dialect <名前>] <入力>
 | `ir` | 中間表現（intermediate representation）。mixin と blueprint を展開し、テーブル名・FK列名・index名を確定させた状態のスキーマ |
 | `ast` | 構文木 |
 
-`--dialect` は出力ターゲットを選ぶ。既定は `postgres`。型名・予約語・FK の型解決はターゲットが持つ。
+| オプション | 内容 |
+|---|---|
+| `--dialect <名前>` | 出力ターゲット。既定は `postgres`。型名・予約語・FK の型解決はターゲットが持つ |
+| `-o, --output <PATH>` | 出力先。省略すると標準出力。親ディレクトリは自動で作る |
+| `--deny-warnings` | 警告があっても終了コードを 1 にする |
+
+入力に `-` を渡すと標準入力から読む。診断は常に標準エラーに出るので、出力をパイプに繋いでも混ざらない。
+
+```
+ddsl sql schema.ddsl -o schema.sql
+cat schema.ddsl | ddsl sql - > schema.sql
+ddsl check schema.ddsl --deny-warnings   # CI 向け
+```
 
 診断は 1 回の実行でまとめて出る。1行1文なので、エラーの出た行を読み飛ばして次の文から解析を続ける。
 

@@ -1,11 +1,12 @@
-use std::path::PathBuf;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use ddsl_core::{Severity, codegen, diag, dialect, parse, resolve};
+use ddsl_core::{Diagnostic, Severity, codegen, diag, dialect, parse, resolve};
 
 #[derive(Parser)]
-#[command(name = "ddsl", about = "DB設計用DSLコンパイラ")]
+#[command(name = "ddsl", version, about = "DB設計用DSLコンパイラ")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -13,6 +14,14 @@ struct Cli {
     /// 出力ターゲット
     #[arg(long, global = true, default_value = "postgres")]
     dialect: String,
+
+    /// 出力先。省略すると標準出力に書く
+    #[arg(short, long, global = true, value_name = "PATH")]
+    output: Option<PathBuf>,
+
+    /// 警告があっても失敗させる
+    #[arg(long, global = true)]
+    deny_warnings: bool,
 }
 
 #[derive(Subcommand)]
@@ -28,7 +37,7 @@ enum Command {
 }
 
 impl Command {
-    fn input(&self) -> &PathBuf {
+    fn input(&self) -> &Path {
         match self {
             Command::Check { input }
             | Command::Ast { input }
@@ -40,6 +49,7 @@ impl Command {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+
     let Some(dialect) = dialect::by_name(&cli.dialect) else {
         anyhow::bail!(
             "知らない dialect `{}`。使えるのは {}",
@@ -47,58 +57,85 @@ fn main() -> Result<()> {
             dialect::names().join(" / ")
         );
     };
+
     let input = cli.command.input();
-    let path = input.display().to_string();
-    let src = std::fs::read_to_string(input).with_context(|| format!("読めない: {path}"))?;
+    let (src, path) = read_input(input)?;
 
     let (doc, mut diags) = parse(&src);
-    let parse_errors = count_errors(&diags);
+    let mut out = String::new();
 
-    if let Command::Ast { .. } = cli.command {
-        report(&src, &path, &diags);
-        println!("{doc:#?}");
-        return finish(parse_errors);
+    if count(&diags, Severity::Error) == 0 {
+        let (schema, mut resolved) = resolve(&doc, dialect);
+        let has_error = count(&resolved, Severity::Error) > 0;
+        diags.append(&mut resolved);
+
+        match &cli.command {
+            Command::Ast { .. } => out = format!("{doc:#?}\n"),
+            Command::Ir { .. } => out = format!("{schema:#?}\n"),
+            Command::Sql { .. } if !has_error => out = codegen::emit(dialect, &schema),
+            Command::Check { .. } if !has_error => {
+                out = format!(
+                    "ok: {} tables, {} columns\n",
+                    schema.tables.len(),
+                    schema.tables.iter().map(|t| t.columns.len()).sum::<usize>()
+                )
+            }
+            _ => {}
+        }
+    } else if let Command::Ast { .. } = cli.command {
+        // 構文エラーがあっても、そこまで組み立てた木は見せる。
+        out = format!("{doc:#?}\n");
     }
 
-    if parse_errors > 0 {
-        report(&src, &path, &diags);
-        return finish(parse_errors);
-    }
-
-    let (schema, mut resolve_diags) = resolve(&doc, dialect);
-    diags.append(&mut resolve_diags);
-    let errors = count_errors(&diags);
-    report(&src, &path, &diags);
-
-    match cli.command {
-        Command::Ir { .. } => println!("{schema:#?}"),
-        Command::Sql { .. } if errors == 0 => print!("{}", codegen::emit(dialect, &schema)),
-        Command::Check { .. } if errors == 0 => println!(
-            "ok: {} tables, {} columns",
-            schema.tables.len(),
-            schema.tables.iter().map(|t| t.columns.len()).sum::<usize>()
-        ),
-        _ => {}
-    }
-    finish(errors)
-}
-
-fn count_errors(diags: &[ddsl_core::Diagnostic]) -> usize {
-    diags
-        .iter()
-        .filter(|d| d.severity == Severity::Error)
-        .count()
-}
-
-fn report(src: &str, path: &str, diags: &[ddsl_core::Diagnostic]) {
     if !diags.is_empty() {
-        eprint!("{}", diag::render(src, path, diags));
+        eprint!("{}", diag::render(&src, &path, &diags));
     }
-}
+    if !out.is_empty() {
+        write_output(cli.output.as_deref(), &out)?;
+    }
 
-fn finish(errors: usize) -> Result<()> {
-    if errors > 0 {
+    let errors = count(&diags, Severity::Error);
+    let warnings = count(&diags, Severity::Warning);
+    if errors > 0 || (cli.deny_warnings && warnings > 0) {
+        if errors == 0 {
+            eprintln!("error: 警告が {warnings} 件ある（--deny-warnings）");
+        }
         std::process::exit(1);
     }
     Ok(())
+}
+
+fn count(diags: &[Diagnostic], severity: Severity) -> usize {
+    diags.iter().filter(|d| d.severity == severity).count()
+}
+
+/// `-` なら標準入力から読む。
+fn read_input(path: &Path) -> Result<(String, String)> {
+    if path == Path::new("-") {
+        let mut src = String::new();
+        std::io::stdin()
+            .read_to_string(&mut src)
+            .context("標準入力を読めない")?;
+        return Ok((src, "<stdin>".into()));
+    }
+    let name = path.display().to_string();
+    let src = std::fs::read_to_string(path).with_context(|| format!("読めない: {name}"))?;
+    Ok((src, name))
+}
+
+fn write_output(path: Option<&Path>, text: &str) -> Result<()> {
+    match path {
+        Some(path) => {
+            if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+                std::fs::create_dir_all(dir)
+                    .with_context(|| format!("作れない: {}", dir.display()))?;
+            }
+            std::fs::write(path, text).with_context(|| format!("書けない: {}", path.display()))
+        }
+        None => {
+            let mut stdout = std::io::stdout().lock();
+            stdout.write_all(text.as_bytes())?;
+            stdout.flush().map_err(Into::into)
+        }
+    }
 }
