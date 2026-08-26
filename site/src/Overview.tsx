@@ -1,53 +1,16 @@
-import { For } from "solid-js";
 import { CodeTabs } from "./CodeTabs";
 import { readExample } from "./content";
-
-/**
- * One row of vocabulary, and every name the compiler builds from it.
- *
- * These are the real names `nounsql` emits for the schema in the
- * example below — not an illustration.
- */
-const DERIVED = [
-  { name: "users", from: "table name" },
-  { name: "user_id", from: "foreign key on posts" },
-  { name: "idx_posts_user_id", from: "its index" },
-  { name: "posts_user_id_fkey", from: "the constraint" },
-  { name: "'A person who signs in'", from: "COMMENT ON TABLE" },
-];
 
 export function Overview() {
   return (
     <>
       <section class="hero">
-        <p class="hero-eyebrow">Data Definition Schema Language</p>
-
-        <h1>Name the nouns. The rest of the names follow.</h1>
+        <h1>Write the conventions once.</h1>
 
         <p class="hero-lede">
-          A schema language that compiles to SQL DDL. You write the vocabulary and the
-          conventions once; table names, foreign keys, indexes and comments come out of them.
+          Mixins, naming rules and a dictionary of nouns settle the repetitive parts of a schema.
+          What stays in a table definition is what makes that table different.
         </p>
-
-        <div class="derive">
-          <p class="derive-label">One line in nouns</p>
-
-          <div class="derive-seed">
-            <b>user users</b>
-            <span>"A person who signs in"</span>
-          </div>
-
-          <div class="derive-out">
-            <For each={DERIVED}>
-              {(row) => (
-                <p class="derive-row">
-                  <b>{row.name}</b>
-                  <span>{row.from}</span>
-                </p>
-              )}
-            </For>
-          </div>
-        </div>
 
         <div class="hero-actions">
           <a class="button" href="./playground.html">
