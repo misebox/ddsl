@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+#
+# リリースする。
+#
+#   bin/release 0.2.0            検査 → バージョン更新 → 公開 → push
+#   bin/release 0.2.0 --check    検査だけ行い、何も書き換えない
+#   bin/release 0.2.0 --yes      確認を省く
+#
+# crates.io への公開には CARGO_REGISTRY_TOKEN が要る。cargo が直接読む変数。
+# タグを push すると CI がバイナリをビルドして GitHub Release を作る。
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# 依存の順に公開する。
+CRATES=(ddsl-core ddsl-lsp ddsl)
+
+usage() {
+  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+  exit 1
+}
+
+die() {
+  echo "error: $*" >&2
+  exit 1
+}
+
+step() {
+  echo
+  echo "==> $*"
+}
+
+confirm() {
+  [ "$ASSUME_YES" = yes ] && return 0
+  local reply
+  read -r -p "$1 [y/N] " reply
+  [ "$reply" = y ] || [ "$reply" = Y ] || die "中止した"
+}
+
+# GNU sed と BSD sed の -i の差を吸収する。
+replace_in_file() {
+  local pattern=$1 file=$2 tmp
+  tmp=$(mktemp)
+  sed "$pattern" "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
+# crates.io にそのバージョンが載っているか。
+is_published() {
+  curl -sf -o /dev/null -A ddsl-release "https://crates.io/api/v1/crates/$1/$2"
+}
+
+wait_for_index() {
+  local crate=$1 version=$2
+  for _ in $(seq 30); do
+    if is_published "$crate" "$version"; then
+      echo "  $crate $version を確認した"
+      return 0
+    fi
+    sleep 10
+  done
+  die "$crate $version がレジストリに現れない"
+}
+
+[ $# -ge 1 ] || usage
+VERSION=$1
+MODE=${2:-}
+CHECK_ONLY=no
+ASSUME_YES=no
+case "$MODE" in
+  --check) CHECK_ONLY=yes ;;
+  --yes)   ASSUME_YES=yes ;;
+  "")      ;;
+  *)       die "知らないオプション: $MODE" ;;
+esac
+TAG="v$VERSION"
+
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] \
+  || die "バージョンが semver ではない: $VERSION"
+
+step "前提の確認"
+command -v cargo >/dev/null || die "cargo が無い"
+command -v git   >/dev/null || die "git が無い"
+if [ "$CHECK_ONLY" = no ]; then
+  command -v gh >/dev/null || die "gh が無い"
+  [ -n "${CARGO_REGISTRY_TOKEN:-}" ] \
+    || die "CARGO_REGISTRY_TOKEN が未設定。crates.io の API トークンを入れる"
+fi
+[ -z "$(git status --porcelain)" ] || die "コミットされていない変更がある"
+git rev-parse "$TAG" >/dev/null 2>&1 && die "タグ $TAG は既にある"
+echo "ok"
+
+step "フォーマット"
+cargo fmt --check
+
+step "lint"
+cargo clippy --all-targets -- -D warnings
+
+step "テスト"
+cargo test
+
+step "サンプルの DDL が最新か"
+cargo run -q -p ddsl -- sql examples/sample.ddsl > examples/sample.sql
+git diff --quiet examples/sample.sql \
+  || die "examples/sample.sql が古い。生成し直してコミットする"
+echo "ok"
+
+step "ドキュメントサイトが生成できるか"
+cargo run -q -p ddsl-site >/dev/null
+echo "ok"
+
+step "パッケージの中身"
+for crate in "${CRATES[@]}"; do
+  echo "  $crate: $(cargo package --list -p "$crate" | wc -l | tr -d ' ') files"
+done
+
+step "公開済みかどうか"
+for crate in "${CRATES[@]}"; do
+  if is_published "$crate" "$VERSION"; then
+    echo "  $crate $VERSION: 公開済み（飛ばす）"
+  else
+    echo "  $crate $VERSION: 未公開"
+  fi
+done
+
+if [ "$CHECK_ONLY" = yes ]; then
+  step "検査のみ完了。何も書き換えていない"
+  exit 0
+fi
+
+step "バージョンを $VERSION にする"
+replace_in_file "s/^version = \"[^\"]*\"$/version = \"$VERSION\"/" Cargo.toml
+replace_in_file \
+  "s|^ddsl-core = { path = \"crates/ddsl-core\", version = \"[^\"]*\" }|ddsl-core = { path = \"crates/ddsl-core\", version = \"$VERSION\" }|" \
+  Cargo.toml
+cargo update --workspace --quiet
+git --no-pager diff --stat Cargo.toml Cargo.lock
+
+step "コミットとタグ"
+git add Cargo.toml Cargo.lock
+git commit -q -m "Release $TAG"
+git tag -a "$TAG" -m "$TAG"
+echo "  $(git log --oneline -1)"
+
+cat <<EOF
+
+ここから先は取り消せない。crates.io は unpublish できず、yank しかできない。
+
+  公開するもの: ${CRATES[*]} $VERSION
+  push するもの: $(git rev-parse --abbrev-ref HEAD) と $TAG
+EOF
+confirm "続ける？"
+
+step "crates.io へ公開"
+for crate in "${CRATES[@]}"; do
+  if is_published "$crate" "$VERSION"; then
+    echo "  $crate: 公開済み。飛ばす"
+    continue
+  fi
+  echo "  $crate を公開する"
+  cargo publish -p "$crate"
+  # 後続の crate がこれを依存として解決できるまで待つ。
+  [ "$crate" = "${CRATES[-1]}" ] || wait_for_index "$crate" "$VERSION"
+done
+
+step "push"
+git push origin HEAD
+git push origin "$TAG"
+
+cat <<EOF
+
+完了。
+
+  crates.io  https://crates.io/crates/ddsl
+  CI         https://github.com/misebox/ddsl/actions
+
+タグの push で CI がバイナリをビルドし、GitHub Release を作る。
+EOF
