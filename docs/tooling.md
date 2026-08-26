@@ -3,7 +3,7 @@
 ## CLI
 
 ```
-ddsl <サブコマンド> [オプション] <入力>
+nounsql <サブコマンド> [オプション] <入力>
 ```
 
 | サブコマンド | 出力 |
@@ -22,23 +22,23 @@ ddsl <サブコマンド> [オプション] <入力>
 入力に `-` を渡すと標準入力から読む。診断は常に標準エラーに出るので、出力をパイプに繋いでも混ざらない。
 
 ```
-ddsl sql schema.ddsl -o schema.sql
-cat schema.ddsl | ddsl sql - > schema.sql
-ddsl check schema.ddsl --deny-warnings   # CI 向け
+nounsql sql schema.nsql -o schema.sql
+cat schema.nsql | nounsql sql - > schema.sql
+nounsql check schema.nsql --deny-warnings   # CI 向け
 ```
 
 診断は 1 回の実行でまとめて出る。1行1文なので、エラーの出た行を読み飛ばして次の文から解析を続ける。
 
 ```
 error: 知らない属性キー `foo`。使えるのは type / null / default / on_update / comment
-  --> schema.ddsl:2:26
+  --> schema.nsql:2:26
    2 |   column email type=text foo=1
      |                          ^^^
 ```
 
 ## Language Server
 
-`crates/ddsl-lsp` が stdio の LSP サーバ。
+`crates/nounsql-lsp` が stdio の LSP サーバ。
 
 | 機能 | 内容 |
 |---|---|
@@ -49,7 +49,7 @@ error: 知らない属性キー `foo`。使えるのは type / null / default / 
 | 補完 | キーワード・属性キー・型名・mixin 名・名詞 |
 
 ```
-cargo install --path crates/ddsl-lsp
+cargo install --path crates/nounsql-lsp
 ```
 
 ## VS Code
@@ -62,24 +62,24 @@ npm install
 npm run compile
 ```
 
-`ddsl-lsp` が PATH に無い場合は設定 `ddsl.server.path` で場所を指定する。
+`nounsql-lsp` が PATH に無い場合は設定 `nounsql.server.path` で場所を指定する。
 
 ## プレイグラウンド
 
 [プレイグラウンド](playground.html)はブラウザの中でコンパイルする。入力はどこにも送られない。
 
-`crates/ddsl-wasm` が `ddsl-core` を WebAssembly に落としたもので、CLI と同じ字句解析・解決・コード生成・シンタックスハイライトを使う。`ddsl-core` の依存は `indexmap` だけで I/O を持たないため、そのまま wasm32 に載る。
+`crates/nounsql-wasm` が `nounsql-core` を WebAssembly に落としたもので、CLI と同じ字句解析・解決・コード生成・シンタックスハイライトを使う。`nounsql-core` の依存は `indexmap` だけで I/O を持たないため、そのまま wasm32 に載る。
 
 ```
-wasm-pack build crates/ddsl-wasm --target web --out-dir pkg --release
-cargo run -p ddsl-site
+wasm-pack build crates/nounsql-wasm --target web --out-dir pkg --release
+cargo run -p nounsql-site
 ```
 
 `wasm-pack` の生成物はサイト生成時に `dist/` へ複製される。
 
 ## GBNF
 
-[`ddsl.gbnf`](ddsl.gbnf) は llama.cpp 系の制約付きデコード用の文法。LLM に DDSL を生成させるときに構文を外させないために使う。
+[`nounsql.gbnf`](nounsql.gbnf) は llama.cpp 系の制約付きデコード用の文法。LLM に NounSQL を生成させるときに構文を外させないために使う。
 
 ## パイプライン
 
@@ -98,9 +98,9 @@ source
 
 | パス | 内容 |
 |---|---|
-| `crates/ddsl-core` | lexer / parser / resolver / codegen |
-| `crates/ddsl-cli` | `ddsl` コマンド |
-| `crates/ddsl-lsp` | language server |
-| `crates/ddsl-site` | このドキュメントサイトの生成 |
-| `crates/ddsl-wasm` | WebAssembly バインディング（プレイグラウンド用） |
+| `crates/nounsql-core` | lexer / parser / resolver / codegen |
+| `crates/nounsql-cli` | `nounsql` コマンド |
+| `crates/nounsql-lsp` | language server |
+| `crates/nounsql-site` | このドキュメントサイトの生成 |
+| `crates/nounsql-wasm` | WebAssembly バインディング（プレイグラウンド用） |
 | `editors/vscode` | VS Code 拡張 |

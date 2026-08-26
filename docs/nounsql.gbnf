@@ -1,0 +1,112 @@
+# NounSQL grammar (GBNF / llama.cpp constrained decoding)
+# 対応する仕様: docs/spec.md
+
+root ::= nls? (item (nls item)*)? nls?
+
+item ::=
+      naming-block
+    | constraints-block
+    | nouns-block
+    | mixin-block
+    | blueprint-block
+    | table-block
+    | associate
+    | apply-blueprint
+
+# ---------- 設定ブロック ----------
+
+naming-block ::= "naming" sp "{" nls (assign nls)* "}"
+constraints-block ::= "constraints" sp "{" nls (assign nls)* "}"
+
+assign ::= sp ident sp "=" sp value
+
+nouns-block ::= "nouns" sp "{" nls (noun-entry nls)* "}"
+noun-entry ::= sp ident sp1 ident sp1 string
+
+# ---------- mixin ----------
+
+mixin-block ::= "mixin" sp1 ident sp "{" nls (member nls)* "}"
+
+# ---------- table ----------
+
+table-block ::= "table" sp1 ident sp "{" nls (member nls)* "}"
+
+member ::= sp (
+      comment-stmt
+    | column-stmt
+    | pk-stmt
+    | index-stmt
+    | use-stmt
+    | override-stmt
+    | except-index-stmt
+    | except-stmt
+    | unique-belongs-to-stmt
+    | belongs-to-stmt
+    | has-many-stmt
+    | has-one-stmt
+    )
+
+comment-stmt ::= "comment" sp1 string
+column-stmt ::= "column" sp1 ident (sp1 attr)*
+pk-stmt ::= "pk" sp1 col-list
+index-stmt ::= "index" sp1 col-list (sp1 "unique")?
+use-stmt ::= "use" sp1 ident
+override-stmt ::= "override" sp1 ident (sp1 attr)+
+except-index-stmt ::= "except" sp1 "index" sp1 col-list
+except-stmt ::= "except" sp1 name-list
+belongs-to-stmt ::= "belongs_to" sp1 ident (sp1 rel-attr)*
+unique-belongs-to-stmt ::= "unique_belongs_to" sp1 ident (sp1 rel-attr)*
+has-many-stmt ::= "has_many" sp1 ident (sp1 rel-attr)*
+has-one-stmt ::= "has_one" sp1 ident (sp1 rel-attr)*
+
+rel-attr ::= rel-key sp "=" sp (fn-call | string)
+rel-key ::= "fk" | "alias" | "via" | "comment"
+
+attr ::= attr-key sp "=" sp value
+attr-key ::= "type" | "null" | "default" | "on_update" | "comment"
+
+col-list ::= ident | ident-list
+name-list ::= ident | ident-list
+ident-list ::= "[" sp ident (sp "," sp ident)* sp "]"
+
+# ---------- blueprint ----------
+
+blueprint-block ::= "blueprint" sp1 ident (sp1 ident)* sp "{" nls (bp-member nls)* "}"
+bp-member ::= sp (let-stmt | table-block)
+let-stmt ::= "let" sp1 ident sp "=" sp expr
+
+# ---------- マクロ ----------
+
+associate ::= "associate" sp "(" sp ident sp "," sp ident (sp "," sp macro-arg)* sp ")"
+macro-arg ::= "name" sp "=" sp (fn-call | ident | string)
+            | "comment" sp "=" sp string
+apply-blueprint ::= "apply_blueprint" sp "(" sp ident (sp "," sp ident)+ sp ")"
+
+# ---------- 値 ----------
+
+value ::= eval-call | fn-call | string | list | ident
+expr ::= fn-call | string | ident
+
+fn-call ::= fn-name sp "(" sp fn-arg (sp "," sp fn-arg)* sp ")"
+fn-arg ::= fn-call | string | ident
+fn-name ::= "noun" | "singular" | "plural" | "desc"
+
+eval-call ::= "eval" sp "(" sql-expr ")"
+sql-expr ::= sql-atom*
+sql-atom ::= [^()] | "(" sql-expr ")"
+
+list ::= "[" ws (ident (ws "," ws ident)*)? ws "]"
+
+string ::= "\"" str-char* "\""
+str-char ::= [^"\\] | "\\" [^]
+
+ident ::= [a-zA-Z_] [a-zA-Z0-9_]*
+
+# ---------- 空白 ----------
+
+sp ::= [ \t]*
+sp1 ::= [ \t]+
+ws ::= [ \t\r\n]*
+comment ::= "#" [^\n]*
+nl ::= sp comment? "\r"? "\n"
+nls ::= nl+

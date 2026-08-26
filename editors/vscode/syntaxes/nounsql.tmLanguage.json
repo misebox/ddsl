@@ -1,0 +1,128 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "NounSQL",
+  "scopeName": "source.nounsql",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#block-keyword" },
+    { "include": "#statement-keyword" },
+    { "include": "#macro" },
+    { "include": "#function" },
+    { "include": "#attribute" },
+    { "include": "#config-key" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#constant" },
+    { "include": "#type" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "#.*$",
+      "name": "comment.line.number-sign.nsql"
+    },
+    "block-keyword": {
+      "patterns": [
+        {
+          "match": "^\\s*\\b(table|mixin|blueprint)\\b\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.control.nsql" },
+            "2": { "name": "entity.name.type.nsql" }
+          }
+        },
+        {
+          "match": "^\\s*\\b(naming|constraints|nouns)\\b",
+          "name": "keyword.control.nsql"
+        }
+      ]
+    },
+    "statement-keyword": {
+      "patterns": [
+        {
+          "match": "^\\s*\\b(column|override)\\b\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.nsql" },
+            "2": { "name": "variable.other.member.nsql" }
+          }
+        },
+        {
+          "match": "^\\s*\\b(use|belongs_to|unique_belongs_to|has_many|has_one)\\b\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.nsql" },
+            "2": { "name": "entity.name.type.nsql" }
+          }
+        },
+        {
+          "match": "^\\s*\\b(let)\\b\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.nsql" },
+            "2": { "name": "variable.other.nsql" }
+          }
+        },
+        {
+          "match": "^\\s*\\b(comment)\\b(?=\\s*\")",
+          "name": "keyword.other.nsql"
+        },
+        {
+          "match": "\\b(pk|index|except|unique)\\b",
+          "name": "keyword.other.nsql"
+        }
+      ]
+    },
+    "macro": {
+      "match": "\\b(associate|apply_blueprint)\\b(?=\\s*\\()",
+      "name": "support.function.macro.nsql"
+    },
+    "function": {
+      "match": "\\b(eval|noun|singular|plural|desc)\\b(?=\\s*\\()",
+      "name": "support.function.nsql"
+    },
+    "attribute": {
+      "match": "\\b(type|null|default|on_update|comment|fk|alias|via)\\b(?=\\s*=)",
+      "name": "entity.other.attribute-name.nsql"
+    },
+    "config-key": {
+      "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*(?==)",
+      "captures": { "1": { "name": "variable.other.property.nsql" } }
+    },
+    "string": {
+      "name": "string.quoted.double.nsql",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "match": "\\\\.", "name": "constant.character.escape.nsql" },
+        {
+          "begin": "\\$\\{",
+          "end": "\\}",
+          "name": "meta.embedded.template.nsql",
+          "beginCaptures": { "0": { "name": "punctuation.definition.template-expression.begin.nsql" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.template-expression.end.nsql" } },
+          "patterns": [
+            { "match": "\\b(singular|plural|desc)\\b", "name": "support.function.nsql" },
+            { "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b", "name": "variable.other.nsql" }
+          ]
+        }
+      ]
+    },
+    "number": {
+      "match": "\\b-?[0-9]+(\\.[0-9]+)?\\b",
+      "name": "constant.numeric.nsql"
+    },
+    "constant": {
+      "match": "\\b(true|false|cascade|restrict|set_null|no_action|plural|singular)\\b",
+      "name": "constant.language.nsql"
+    },
+    "type": {
+      "match": "(?<==)\\s*\\b(smallint|integer|bigint|int2|int4|int8|decimal|numeric|real|float4|float8|smallserial|serial|bigserial|serial2|serial4|serial8|money|varchar|char|text|bytea|timestamp|timestamptz|date|time|timetz|interval|boolean|bool|cidr|inet|macaddr|macaddr8|bit|varbit|tsvector|tsquery|uuid|xml|json|jsonb|jsonpath)\\b",
+      "name": "support.type.nsql"
+    },
+    "punctuation": {
+      "patterns": [
+        { "match": "[{}]", "name": "punctuation.section.block.nsql" },
+        { "match": "[\\[\\]]", "name": "punctuation.section.brackets.nsql" },
+        { "match": "[(),]", "name": "punctuation.separator.nsql" },
+        { "match": "=", "name": "keyword.operator.assignment.nsql" }
+      ]
+    }
+  }
+}

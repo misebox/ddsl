@@ -39,15 +39,15 @@ jobs:
           key: ${{ matrix.target }}
 
       - name: ビルド
-        run: cargo build --release --target ${{ matrix.target }} -p ddsl -p ddsl-lsp
+        run: cargo build --release --target ${{ matrix.target }} -p nounsql -p nounsql-lsp
 
       - name: 固める (unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          name="ddsl-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          name="nounsql-${GITHUB_REF_NAME}-${{ matrix.target }}"
           mkdir "$name"
-          cp target/${{ matrix.target }}/release/ddsl target/${{ matrix.target }}/release/ddsl-lsp "$name/"
+          cp target/${{ matrix.target }}/release/nounsql target/${{ matrix.target }}/release/nounsql-lsp "$name/"
           cp README.md LICENSE-MIT LICENSE-APACHE "$name/"
           tar czf "$name.tar.gz" "$name"
           shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
@@ -56,9 +56,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          name="ddsl-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          name="nounsql-${GITHUB_REF_NAME}-${{ matrix.target }}"
           mkdir "$name"
-          cp target/${{ matrix.target }}/release/ddsl.exe target/${{ matrix.target }}/release/ddsl-lsp.exe "$name/"
+          cp target/${{ matrix.target }}/release/nounsql.exe target/${{ matrix.target }}/release/nounsql-lsp.exe "$name/"
           cp README.md LICENSE-MIT LICENSE-APACHE "$name/"
           7z a "$name.zip" "$name" > /dev/null
           certutil -hashfile "$name.zip" SHA256 | sed -n 2p > "$name.zip.sha256"
@@ -67,10 +67,10 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: |
-            ddsl-*.tar.gz
-            ddsl-*.tar.gz.sha256
-            ddsl-*.zip
-            ddsl-*.zip.sha256
+            nounsql-*.tar.gz
+            nounsql-*.tar.gz.sha256
+            nounsql-*.zip
+            nounsql-*.zip.sha256
           if-no-files-found: error
 
   github-release:
@@ -89,13 +89,13 @@ jobs:
           ## インストール
 
           ```
-          cargo install ddsl
-          cargo install ddsl-lsp
+          cargo install nounsql
+          cargo install nounsql-lsp
           ```
 
           バイナリを直接使う場合は下の一覧から選ぶ。`.sha256` で検証できる。
 
-          ドキュメント: https://misebox.github.io/ddsl
+          ドキュメント: https://misebox.github.io/nounsql
           NOTES
 
       - name: リリースを作る

@@ -1,20 +1,20 @@
 [workspace]
 resolver = "3"
-members = ["crates/ddsl-core", "crates/ddsl-cli", "crates/ddsl-lsp", "crates/ddsl-site", "crates/ddsl-wasm"]
+members = ["crates/nounsql-core", "crates/nounsql-cli", "crates/nounsql-lsp", "crates/nounsql-site", "crates/nounsql-wasm"]
 
 [workspace.package]
 version = "0.1.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/misebox/ddsl"
-homepage = "https://misebox.github.io/ddsl"
+repository = "https://github.com/misebox/nounsql"
+homepage = "https://misebox.github.io/nounsql"
 authors = ["misebox"]
 keywords = ["dsl", "ddl", "schema", "sql", "postgres"]
 categories = ["database", "compilers", "command-line-utilities"]
 rust-version = "1.91"
 
 [workspace.dependencies]
-ddsl-core = { path = "crates/ddsl-core", version = "0.1.1" }
+nounsql-core = { path = "crates/nounsql-core", version = "0.1.1" }
 
 [profile.release]
 strip = true
