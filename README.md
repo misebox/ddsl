@@ -70,8 +70,11 @@ source
 ## リリース
 
 ```
-bin/release 0.2.0 --check   # 検査のみ、何も書き換えない
-bin/release 0.2.0           # 検査 → バージョン更新 → crates.io 公開 → push
+bin/release patch           # 0.1.0 -> 0.1.1
+bin/release minor           # 0.1.0 -> 0.2.0
+bin/release major           # 0.1.0 -> 1.0.0
+bin/release 0.2.0           # バージョンを直接指定する
+bin/release patch --check   # 検査のみ、何も書き換えない
 ```
 
 `CARGO_REGISTRY_TOKEN` に crates.io の API トークンを入れておく。cargo が直接読む変数。

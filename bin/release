@@ -2,9 +2,12 @@
 #
 # リリースする。
 #
-#   bin/release 0.2.0            検査 → バージョン更新 → 公開 → push
-#   bin/release 0.2.0 --check    検査だけ行い、何も書き換えない
-#   bin/release 0.2.0 --yes      確認を省く
+#   bin/release patch            0.1.0 -> 0.1.1
+#   bin/release minor            0.1.0 -> 0.2.0
+#   bin/release major            0.1.0 -> 1.0.0
+#   bin/release 0.2.0            バージョンを直接指定する
+#   bin/release patch --check    検査だけ行い、何も書き換えない
+#   bin/release patch --yes      確認を省く
 #
 # crates.io への公開には CARGO_REGISTRY_TOKEN が要る。cargo が直接読む変数。
 # タグを push すると CI がバイナリをビルドして GitHub Release を作る。
@@ -16,7 +19,7 @@ cd "$(dirname "$0")/.."
 CRATES=(ddsl-core ddsl-lsp ddsl)
 
 usage() {
-  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
 }
 
@@ -35,6 +38,32 @@ confirm() {
   local reply
   read -r -p "$1 [y/N] " reply
   [ "$reply" = y ] || [ "$reply" = Y ] || die "中止した"
+}
+
+# Cargo.toml の [workspace.package] version。
+current_version() {
+  sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -1
+}
+
+# major / minor / patch のどれかを上げた版を返す。
+# プレリリースが付いていれば落とす。patch はプレリリースを確定させるだけにする。
+bump_version() {
+  local current=$1 kind=$2
+  local core=${current%%-*}
+  local pre=""
+  [ "$core" = "$current" ] || pre=${current#*-}
+
+  [[ "$core" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+    || die "Cargo.toml のバージョンを解釈できない: $current"
+
+  local major minor patch
+  IFS=. read -r major minor patch <<< "$core"
+  case "$kind" in
+    major) major=$((major + 1)); minor=0; patch=0 ;;
+    minor) minor=$((minor + 1)); patch=0 ;;
+    patch) [ -n "$pre" ] || patch=$((patch + 1)) ;;
+  esac
+  echo "$major.$minor.$patch"
 }
 
 # GNU sed と BSD sed の -i の差を吸収する。
@@ -63,7 +92,13 @@ wait_for_index() {
 }
 
 [ $# -ge 1 ] || usage
-VERSION=$1
+CURRENT=$(current_version)
+[ -n "$CURRENT" ] || die "Cargo.toml からバージョンを読めない"
+
+case "$1" in
+  major|minor|patch) VERSION=$(bump_version "$CURRENT" "$1") ;;
+  *)                 VERSION=$1 ;;
+esac
 MODE=${2:-}
 CHECK_ONLY=no
 ASSUME_YES=no
@@ -77,6 +112,13 @@ TAG="v$VERSION"
 
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] \
   || die "バージョンが semver ではない: $VERSION"
+# 据え置きも許す。初回リリースは現在の版をそのまま出す。
+# 再リリースはタグの存在で弾く。
+if [ "$VERSION" = "$CURRENT" ]; then
+  echo "バージョン ${VERSION}（据え置き）"
+else
+  echo "$CURRENT -> $VERSION"
+fi
 
 step "前提の確認"
 command -v cargo >/dev/null || die "cargo が無い"
@@ -134,13 +176,17 @@ replace_in_file \
   "s|^ddsl-core = { path = \"crates/ddsl-core\", version = \"[^\"]*\" }|ddsl-core = { path = \"crates/ddsl-core\", version = \"$VERSION\" }|" \
   Cargo.toml
 cargo update --workspace --quiet
-git --no-pager diff --stat Cargo.toml Cargo.lock
 
 step "コミットとタグ"
-git add Cargo.toml Cargo.lock
-git commit -q -m "Release $TAG"
+if git diff --quiet Cargo.toml Cargo.lock; then
+  echo "  バージョンは据え置き。コミットは作らない"
+else
+  git --no-pager diff --stat Cargo.toml Cargo.lock
+  git add Cargo.toml Cargo.lock
+  git commit -q -m "Release $TAG"
+fi
 git tag -a "$TAG" -m "$TAG"
-echo "  $(git log --oneline -1)"
+echo "  $(git log --oneline -1) / $TAG"
 
 cat <<EOF
 
