@@ -23,7 +23,8 @@
 | `editors/vscode` | VS Code 拡張（syntax highlight + LSP クライアント） |
 | `docs/nounsql.gbnf` | GBNF 文法（制約付きデコード用） |
 | `examples/` | サンプルと生成結果 |
-| `bin/release` | リリース（検査・バージョン更新・crates.io 公開・push） |
+| `bin/preview` | ドキュメントサイトをローカルで見る |
+| `bin/release` | リリース（検査・バージョン更新・crates.io / npm 公開・push） |
 
 ## インストール
 
@@ -72,6 +73,13 @@ source
 - `nouns` 辞書と複合名詞 `noun(a, b, ...)`（数は文脈が決める）。規則変化に落ちたら警告
 - DDL 出力: CREATE TABLE / INDEX / FK / COMMENT、`on_update=` はトリガに落とす
 # nounsql
+
+## ドキュメント
+
+```
+bin/preview             # 生成して配信し、変更を見て作り直す
+bin/preview --no-wasm   # WebAssembly を作り直さない。起動が速い
+```
 
 ## リリース
 
