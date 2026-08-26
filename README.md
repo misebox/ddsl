@@ -30,6 +30,7 @@
 ```
 cargo install nounsql        # CLI
 cargo install nounsql-lsp    # language server
+npm install nounsql          # WebAssembly 版（JS / TS から使う）
 ```
 
 バイナリは [Releases](https://github.com/misebox/nounsql/releases) にもある。
@@ -45,6 +46,7 @@ cargo run -p nounsql -- ast   examples/sample.nsql   # 構文木
 nounsql sql schema.nsql -o schema.sql       # 出力先を指定する
 cat schema.nsql | nounsql sql -             # 標準入力から読む
 nounsql check schema.nsql --deny-warnings   # 警告も失敗にする
+nounsql ir schema.nsql --json            # 中間表現を JSON で出す
 ```
 
 ## パイプライン
@@ -85,6 +87,8 @@ bin/release patch --check   # 検査のみ、何も書き換えない
 
 公開は `nounsql-core` → `nounsql-lsp` → `nounsql` の順に行い、後続がレジストリで解決できるまで待つ。
 公開済みのバージョンは飛ばすので、途中で失敗しても再実行できる。
+
+npm へは WebAssembly 版を出す。`npm login` が要る。`--skip-npm` で飛ばせる。
 
 タグの push で CI がバイナリをビルドし、GitHub Release を作る。
 

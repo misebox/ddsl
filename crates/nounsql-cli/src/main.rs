@@ -30,8 +30,13 @@ enum Command {
     Check { input: PathBuf },
     /// 構文木をデバッグ出力する
     Ast { input: PathBuf },
-    /// 中間表現（解決済みスキーマ）をデバッグ出力する
-    Ir { input: PathBuf },
+    /// 中間表現（解決済みスキーマ）を出力する
+    Ir {
+        input: PathBuf,
+        /// JSON で出力する。外部のコード生成に渡すときはこちら
+        #[arg(long)]
+        json: bool,
+    },
     /// DDL を出力する
     Sql { input: PathBuf },
 }
@@ -41,7 +46,7 @@ impl Command {
         match self {
             Command::Check { input }
             | Command::Ast { input }
-            | Command::Ir { input }
+            | Command::Ir { input, .. }
             | Command::Sql { input } => input,
         }
     }
@@ -71,7 +76,16 @@ fn main() -> Result<()> {
 
         match &cli.command {
             Command::Ast { .. } => out = format!("{doc:#?}\n"),
-            Command::Ir { .. } => out = format!("{schema:#?}\n"),
+            Command::Ir { json, .. } => {
+                out = if *json {
+                    let mut text = serde_json::to_string_pretty(&schema)
+                        .context("中間表現を JSON にできない")?;
+                    text.push('\n');
+                    text
+                } else {
+                    format!("{schema:#?}\n")
+                }
+            }
             Command::Sql { .. } if !has_error => out = codegen::emit(dialect, &schema),
             Command::Check { .. } if !has_error => {
                 out = format!(

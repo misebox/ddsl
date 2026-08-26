@@ -19,6 +19,7 @@ pub struct Dict {
 }
 
 /// 複合名詞の構成要素。
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Part {
     /// 名詞。文脈に応じて屈折する。
@@ -30,6 +31,7 @@ pub enum Part {
 /// 1つ以上の要素からなる名詞。単数形と複数形を持つ。
 ///
 /// 最後の要素だけが文脈の数に従い、それ以外は単数形になる。
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Compound {
     pub parts: Vec<Part>,

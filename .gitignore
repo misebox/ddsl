@@ -6,3 +6,4 @@ out/
 crates/nounsql-wasm/pkg/
 
 tmp/
+crates/nounsql-wasm/pkg-npm/

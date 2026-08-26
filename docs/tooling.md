@@ -10,7 +10,7 @@ nounsql <サブコマンド> [オプション] <入力>
 |---|---|
 | `check` | 診断のみ。エラーがなければ件数を表示する |
 | `sql` | DDL |
-| `ir` | 中間表現（intermediate representation）。mixin と blueprint を展開し、テーブル名・FK列名・index名を確定させた状態のスキーマ |
+| `ir` | 中間表現（intermediate representation）。mixin と blueprint を展開し、テーブル名・FK列名・index名を確定させた状態のスキーマ。`--json` で機械可読な形になる |
 | `ast` | 構文木 |
 
 | オプション | 内容 |
@@ -18,6 +18,7 @@ nounsql <サブコマンド> [オプション] <入力>
 | `--dialect <名前>` | 出力ターゲット。既定は `postgres`。型名・予約語・FK の型解決はターゲットが持つ |
 | `-o, --output <PATH>` | 出力先。省略すると標準出力。親ディレクトリは自動で作る |
 | `--deny-warnings` | 警告があっても終了コードを 1 にする |
+| `--json` | `ir` のみ。中間表現を JSON で出す |
 
 入力に `-` を渡すと標準入力から読む。診断は常に標準エラーに出るので、出力をパイプに繋いでも混ざらない。
 
@@ -25,6 +26,7 @@ nounsql <サブコマンド> [オプション] <入力>
 nounsql sql schema.nsql -o schema.sql
 cat schema.nsql | nounsql sql - > schema.sql
 nounsql check schema.nsql --deny-warnings   # CI 向け
+nounsql ir schema.nsql --json -o schema.json
 ```
 
 診断は 1 回の実行でまとめて出る。1行1文なので、エラーの出た行を読み飛ばして次の文から解析を続ける。
@@ -76,6 +78,34 @@ cargo run -p nounsql-site
 ```
 
 `wasm-pack` の生成物はサイト生成時に `dist/` へ複製される。
+
+## npm パッケージ
+
+WebAssembly 版は npm の [`nounsql`](https://www.npmjs.com/package/nounsql) として公開している。ブラウザでも Node でも、Rust のツールチェーン無しでコンパイルできる。
+
+```
+npm install nounsql
+```
+
+```ts
+import init, { compile } from "nounsql";
+
+await init();
+const { sql, ir, diagnostics } = compile(source, "postgres");
+```
+
+`ir` は解決済みスキーマで、TypeScript の型が付いている。ORM のモデル生成などはこれを読んで書く。
+
+```ts
+for (const table of ir.tables) {
+  // table.singular  … "user"        モデル名に使う
+  // table.name      … "users"       テーブル名
+  // table.columns   … 宣言順のカラム
+  // table.foreignKeys / table.reverses … 両方向の関連
+}
+```
+
+同じ内容は CLI の `nounsql ir --json` でも得られる。
 
 ## GBNF
 
