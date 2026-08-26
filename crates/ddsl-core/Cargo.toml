@@ -1,0 +1,7 @@
+[package]
+name = "ddsl-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+indexmap = "2.12"
