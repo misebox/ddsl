@@ -1,6 +1,6 @@
 [package]
 name = "nounsql-core"
-description = "Core of the NounSQL compiler: lexer, parser, resolver, and PostgreSQL DDL codegen."
+description = "Core of the NounSQL compiler: lexer, parser, resolver, and DDL code generation."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

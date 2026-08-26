@@ -25,7 +25,7 @@ export function Overview() {
         <h1>Name the nouns. The rest of the names follow.</h1>
 
         <p class="hero-lede">
-          A schema language that compiles to PostgreSQL DDL. You write the vocabulary and the
+          A schema language that compiles to SQL DDL. You write the vocabulary and the
           conventions once; table names, foreign keys, indexes and comments come out of them.
         </p>
 
