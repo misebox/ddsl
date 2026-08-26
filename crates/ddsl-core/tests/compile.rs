@@ -208,6 +208,41 @@ fn rejects_duplicate_relation_alias() {
 }
 
 #[test]
+fn belongs_to_comment_lands_on_the_fk_column() {
+    let (schema, _) = compile(SAMPLE);
+    let orders = schema.table("orders").expect("orders");
+    assert_eq!(
+        orders.columns["user_id"].comment.as_deref(),
+        Some("注文したユーザー")
+    );
+}
+
+#[test]
+fn associate_comment_lands_on_the_table() {
+    let (schema, _) = compile(SAMPLE);
+    let t = schema.table("user_posts").expect("user_posts");
+    assert_eq!(t.comment.as_deref(), Some("いいね"));
+}
+
+#[test]
+fn rejects_comment_on_has_many() {
+    let src = concat!(
+        "nouns {\n  user users \"u\"\n  post posts \"p\"\n}\n",
+        "mixin base {\n  column id type=serial\n  pk id\n}\n",
+        "table user {\n  use base\n  has_many post comment=\"だめ\"\n}\n",
+        "table post {\n  use base\n  belongs_to user\n}\n"
+    );
+    let (_, diags) = compile(src);
+    assert!(
+        errors(&diags)
+            .iter()
+            .any(|m| m.contains("`comment=` は書けない")),
+        "{:?}",
+        errors(&diags)
+    );
+}
+
+#[test]
 fn detects_mixin_cycle() {
     let src = "mixin a {\n  use b\n}\nmixin b {\n  use a\n}\ntable x {\n  use a\n}\n";
     let (_, diags) = compile(src);

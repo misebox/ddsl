@@ -59,8 +59,8 @@ blueprint audited target comment="変更履歴" {
 
   table t_history comment="変更履歴" {
     use primary_key
-    belongs_to target
-    belongs_to user
+    belongs_to target comment="変更対象"
+    belongs_to user   comment="変更した人"
     column version     type=integer                        comment="版番号"
     column snapshot    type=jsonb                          comment="変更時点の内容"
     column recorded_at type=timestamptz default=eval(now()) comment="記録日時"
@@ -96,13 +96,13 @@ table product {
 
 table order {
   use base
-  belongs_to user
+  belongs_to user comment="注文したユーザー"
 }
 
 table order_item {
   use base
-  belongs_to order
-  belongs_to product
+  belongs_to order   comment="親の注文"
+  belongs_to product comment="対象の商品"
   column quantity type=integer comment="数量"
 }
 
@@ -110,8 +110,8 @@ table post {
   use base
   use publishable
   except index published_at
-  belongs_to user
-  belongs_to category
+  belongs_to user     comment="投稿者"
+  belongs_to category comment="所属カテゴリ"
   column title type=text comment="表題"
 
   index [status, created_at] unique
@@ -119,9 +119,9 @@ table post {
 
 table profile {
   use base
-  unique_belongs_to user
+  unique_belongs_to user comment="持ち主"
   column bio type=text null=true comment="自己紹介"
 }
 
-associate(user, post)
+associate(user, post, comment="いいね")
 apply_blueprint(audited, post)
