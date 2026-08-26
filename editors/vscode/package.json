@@ -1,0 +1,48 @@
+{
+  "name": "ddsl",
+  "displayName": "DDSL",
+  "description": "DB設計用DSLの syntax highlight と language server",
+  "version": "0.1.0",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Programming Languages"],
+  "activationEvents": ["onLanguage:ddsl"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "ddsl",
+        "aliases": ["DDSL"],
+        "extensions": [".ddsl"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ddsl",
+        "scopeName": "source.ddsl",
+        "path": "./syntaxes/ddsl.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "DDSL",
+      "properties": {
+        "ddsl.server.path": {
+          "type": "string",
+          "default": "ddsl-lsp",
+          "description": "ddsl-lsp 実行ファイルのパス"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ."
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.7.2"
+  }
+}
