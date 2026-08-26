@@ -27,7 +27,7 @@
 cargo run -p ddsl -- check examples/sample.ddsl   # 診断のみ
 cargo run -p ddsl -- build examples/sample.ddsl   # DDL を出力
 cargo run -p ddsl -- --dialect postgres build examples/sample.ddsl
-cargo run -p ddsl -- ir    examples/sample.ddsl   # 解決済みスキーマ
+cargo run -p ddsl -- ir    examples/sample.ddsl   # 中間表現（解決済みスキーマ）
 cargo run -p ddsl -- ast   examples/sample.ddsl   # 構文木
 ```
 
@@ -38,7 +38,7 @@ source
  → lexer      改行を文終端とする。eval(...) の中身は生のまま1トークンにする
  → parser     手書き再帰下降。行単位で回復して診断をまとめて出す
  → resolver   blueprint展開 → mixin展開(use/except/override) → relation展開 → 命名解決
- → ir         テーブル名・FK列名・index名が確定したスキーマ
+ → ir         中間表現。mixin と blueprint が消え、名前がすべて確定したスキーマ
  → codegen    PostgreSQL DDL
 ```
 
