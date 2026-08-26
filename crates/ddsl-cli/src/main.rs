@@ -23,8 +23,8 @@ enum Command {
     Ast { input: PathBuf },
     /// 中間表現（解決済みスキーマ）をデバッグ出力する
     Ir { input: PathBuf },
-    /// PostgreSQL の DDL を出力する
-    Build { input: PathBuf },
+    /// DDL を出力する
+    Sql { input: PathBuf },
 }
 
 impl Command {
@@ -33,7 +33,7 @@ impl Command {
             Command::Check { input }
             | Command::Ast { input }
             | Command::Ir { input }
-            | Command::Build { input } => input,
+            | Command::Sql { input } => input,
         }
     }
 }
@@ -72,7 +72,7 @@ fn main() -> Result<()> {
 
     match cli.command {
         Command::Ir { .. } => println!("{schema:#?}"),
-        Command::Build { .. } if errors == 0 => print!("{}", codegen::emit(dialect, &schema)),
+        Command::Sql { .. } if errors == 0 => print!("{}", codegen::emit(dialect, &schema)),
         Command::Check { .. } if errors == 0 => println!(
             "ok: {} tables, {} columns",
             schema.tables.len(),

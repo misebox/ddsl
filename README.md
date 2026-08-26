@@ -27,8 +27,8 @@
 
 ```
 cargo run -p ddsl -- check examples/sample.ddsl   # 診断のみ
-cargo run -p ddsl -- build examples/sample.ddsl   # DDL を出力
-cargo run -p ddsl -- --dialect postgres build examples/sample.ddsl
+cargo run -p ddsl -- sql   examples/sample.ddsl   # DDL を出力
+cargo run -p ddsl -- --dialect postgres sql examples/sample.ddsl
 cargo run -p ddsl -- ir    examples/sample.ddsl   # 中間表現（解決済みスキーマ）
 cargo run -p ddsl -- ast   examples/sample.ddsl   # 構文木
 ```
