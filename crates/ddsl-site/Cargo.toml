@@ -1,0 +1,9 @@
+[package]
+name = "ddsl-site"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ddsl-core.workspace = true
+anyhow = "1"
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
