@@ -10,6 +10,11 @@
 #   bin/release patch --yes      確認を省く
 #
 #   bin/release patch --skip-npm npm への公開を飛ばす
+#   bin/release --npm-only       今のバージョンを npm にだけ出す
+#
+# npm のバージョンは crates.io に合わせる。--npm-only はバージョンを上げず、
+# タグも push もしない。npm が crates.io から遅れているときに追いつかせる。
+#
 # crates.io への公開には CARGO_REGISTRY_TOKEN が要る。cargo が直接読む変数。
 # npm への公開には npm login が要る。
 # タグを push すると CI がバイナリをビルドして GitHub Release を作る。
@@ -25,7 +30,7 @@ NPM_PACKAGE=nounsql
 WASM_CRATE=crates/nounsql-wasm
 
 usage() {
-  sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
 }
 
@@ -72,6 +77,23 @@ bump_version() {
   echo "$major.$minor.$patch"
 }
 
+publish_npm() {
+  step "npm へ公開"
+  # ブラウザとバンドラで要る形が違う。npm にはバンドラ向けを出す。
+  wasm-pack build "$WASM_CRATE" --target bundler --out-dir pkg-npm --release >/dev/null
+  (
+    cd "$WASM_CRATE/pkg-npm"
+    npm pkg set \
+      name="$NPM_PACKAGE" \
+      version="$VERSION" \
+      description="NounSQL: a DSL for database schema design, compiled to PostgreSQL DDL." \
+      homepage="https://misebox.github.io/nounsql" \
+      repository.type="git" \
+      repository.url="git+https://github.com/misebox/nounsql.git"
+    npm publish --access public
+  )
+}
+
 # GNU sed と BSD sed の -i の差を吸収する。
 replace_in_file() {
   local pattern=$1 file=$2 tmp
@@ -83,6 +105,11 @@ replace_in_file() {
 # crates.io にそのバージョンが載っているか。
 is_published() {
   curl -sf -o /dev/null -A nounsql-release "https://crates.io/api/v1/crates/$1/$2"
+}
+
+# npm にそのバージョンが載っているか。
+is_on_npm() {
+  npm view "$1@$2" version >/dev/null 2>&1
 }
 
 wait_for_index() {
@@ -101,10 +128,17 @@ wait_for_index() {
 CURRENT=$(current_version)
 [ -n "$CURRENT" ] || die "Cargo.toml からバージョンを読めない"
 
-case "$1" in
-  major|minor|patch) VERSION=$(bump_version "$CURRENT" "$1") ;;
-  *)                 VERSION=$1 ;;
-esac
+NPM_ONLY=no
+if [ "$1" = "--npm-only" ]; then
+  NPM_ONLY=yes
+  VERSION=$CURRENT
+  set -- dummy "${@:2}"
+else
+  case "$1" in
+    major|minor|patch) VERSION=$(bump_version "$CURRENT" "$1") ;;
+    *)                 VERSION=$1 ;;
+  esac
+fi
 CHECK_ONLY=no
 ASSUME_YES=no
 SKIP_NPM=no
@@ -113,6 +147,7 @@ for arg in "${@:2}"; do
     --check)    CHECK_ONLY=yes ;;
     --yes)      ASSUME_YES=yes ;;
     --skip-npm) SKIP_NPM=yes ;;
+    --npm-only) NPM_ONLY=yes ;;
     *)          die "知らないオプション: $arg" ;;
   esac
 done
@@ -131,10 +166,15 @@ fi
 step "前提の確認"
 command -v cargo >/dev/null || die "cargo が無い"
 command -v git   >/dev/null || die "git が無い"
+[ "$NPM_ONLY" = no ] || [ "$SKIP_NPM" = no ] \
+  || die "--npm-only と --skip-npm は同時に使えない"
+
 if [ "$CHECK_ONLY" = no ]; then
-  command -v gh >/dev/null || die "gh が無い"
-  [ -n "${CARGO_REGISTRY_TOKEN:-}" ] \
-    || die "CARGO_REGISTRY_TOKEN が未設定。crates.io の API トークンを入れる"
+  if [ "$NPM_ONLY" = no ]; then
+    command -v gh >/dev/null || die "gh が無い"
+    [ -n "${CARGO_REGISTRY_TOKEN:-}" ] \
+      || die "CARGO_REGISTRY_TOKEN が未設定。crates.io の API トークンを入れる"
+  fi
   if [ "$SKIP_NPM" = no ]; then
     command -v npm >/dev/null || die "npm が無い。--skip-npm で飛ばせる"
     command -v wasm-pack >/dev/null || die "wasm-pack が無い。--skip-npm で飛ばせる"
@@ -142,7 +182,15 @@ if [ "$CHECK_ONLY" = no ]; then
   fi
 fi
 [ -z "$(git status --porcelain)" ] || die "コミットされていない変更がある"
-git rev-parse "$TAG" >/dev/null 2>&1 && die "タグ $TAG は既にある"
+
+if [ "$NPM_ONLY" = yes ]; then
+  is_on_npm "$NPM_PACKAGE" "$VERSION" \
+    && die "npm の $NPM_PACKAGE $VERSION は公開済み。上げるなら bin/release patch"
+  is_published "$NPM_PACKAGE" "$VERSION" \
+    || echo "  警告: crates.io に $VERSION が無い。npm が先行することになる"
+else
+  git rev-parse "$TAG" >/dev/null 2>&1 && die "タグ $TAG は既にある"
+fi
 echo "ok"
 
 step "フォーマット"
@@ -178,6 +226,14 @@ for crate in "${CRATES[@]}"; do
 done
 
 step "公開済みかどうか"
+if [ "$SKIP_NPM" = no ]; then
+  if is_on_npm "$NPM_PACKAGE" "$VERSION"; then
+    echo "  npm $NPM_PACKAGE $VERSION: 公開済み"
+  else
+    echo "  npm $NPM_PACKAGE $VERSION: 未公開"
+  fi
+fi
+[ "$NPM_ONLY" = no ] || CRATES=()
 for crate in "${CRATES[@]}"; do
   if is_published "$crate" "$VERSION"; then
     echo "  $crate $VERSION: 公開済み（飛ばす）"
@@ -188,6 +244,24 @@ done
 
 if [ "$CHECK_ONLY" = yes ]; then
   step "検査のみ完了。何も書き換えていない"
+  exit 0
+fi
+
+if [ "$NPM_ONLY" = yes ]; then
+  cat <<EOF
+
+npm にだけ出す。バージョンは crates.io に合わせるので上げない。
+
+  公開するもの: npm $NPM_PACKAGE $VERSION
+EOF
+  confirm "続ける？"
+  publish_npm
+  cat <<EOF
+
+完了。
+
+  npm  https://www.npmjs.com/package/$NPM_PACKAGE
+EOF
   exit 0
 fi
 
@@ -233,22 +307,7 @@ for crate in "${CRATES[@]}"; do
   [ "$crate" = "${CRATES[-1]}" ] || wait_for_index "$crate" "$VERSION"
 done
 
-if [ "$SKIP_NPM" = no ]; then
-  step "npm へ公開"
-  # ブラウザとバンドラで要る形が違う。npm にはバンドラ向けを出す。
-  wasm-pack build "$WASM_CRATE" --target bundler --out-dir pkg-npm --release >/dev/null
-  (
-    cd "$WASM_CRATE/pkg-npm"
-    npm pkg set \
-      name="$NPM_PACKAGE" \
-      version="$VERSION" \
-      description="NounSQL: a DSL for database schema design, compiled to PostgreSQL DDL." \
-      homepage="https://misebox.github.io/nounsql" \
-      repository.type="git" \
-      repository.url="git+https://github.com/misebox/nounsql.git"
-    npm publish --access public
-  )
-fi
+[ "$SKIP_NPM" = yes ] || publish_npm
 
 step "push"
 git push origin HEAD
