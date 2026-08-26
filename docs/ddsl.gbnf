@@ -25,14 +25,15 @@ noun-entry ::= sp ident sp1 ident sp1 string
 
 # ---------- mixin ----------
 
-mixin-block ::= "mixin" sp1 ident comment-attr? sp "{" nls (member nls)* "}"
+mixin-block ::= "mixin" sp1 ident sp "{" nls (member nls)* "}"
 
 # ---------- table ----------
 
-table-block ::= "table" sp1 ident comment-attr? sp "{" nls (member nls)* "}"
+table-block ::= "table" sp1 ident sp "{" nls (member nls)* "}"
 
 member ::= sp (
-      column-stmt
+      comment-stmt
+    | column-stmt
     | pk-stmt
     | index-stmt
     | use-stmt
@@ -45,6 +46,7 @@ member ::= sp (
     | has-one-stmt
     )
 
+comment-stmt ::= "comment" sp1 string
 column-stmt ::= "column" sp1 ident (sp1 attr)*
 pk-stmt ::= "pk" sp1 col-list
 index-stmt ::= "index" sp1 col-list (sp1 "unique")?
@@ -62,7 +64,6 @@ rel-key ::= "fk" | "alias" | "via" | "comment"
 
 attr ::= attr-key sp "=" sp value
 attr-key ::= "type" | "null" | "default" | "on_update" | "comment"
-comment-attr ::= sp1 "comment" sp "=" sp string
 
 col-list ::= ident | ident-list
 name-list ::= ident | ident-list
@@ -70,14 +71,15 @@ ident-list ::= "[" sp ident (sp "," sp ident)* sp "]"
 
 # ---------- blueprint ----------
 
-blueprint-block ::= "blueprint" sp1 ident (sp1 ident)* comment-attr? sp "{" nls (bp-member nls)* "}"
+blueprint-block ::= "blueprint" sp1 ident (sp1 ident)* sp "{" nls (bp-member nls)* "}"
 bp-member ::= sp (let-stmt | table-block)
 let-stmt ::= "let" sp1 ident sp "=" sp expr
 
 # ---------- マクロ ----------
 
-associate ::= "associate" sp "(" sp ident sp "," sp ident (sp "," sp comment-arg)? sp ")"
-comment-arg ::= "comment" sp "=" sp string
+associate ::= "associate" sp "(" sp ident sp "," sp ident (sp "," sp macro-arg)* sp ")"
+macro-arg ::= "name" sp "=" sp (fn-call | ident | string)
+            | "comment" sp "=" sp string
 apply-blueprint ::= "apply_blueprint" sp "(" sp ident (sp "," sp ident)+ sp ")"
 
 # ---------- 値 ----------
@@ -87,7 +89,7 @@ expr ::= fn-call | string | ident
 
 fn-call ::= fn-name sp "(" sp fn-arg (sp "," sp fn-arg)* sp ")"
 fn-arg ::= fn-call | string | ident
-fn-name ::= "noun" | "singular" | "plural"
+fn-name ::= "noun" | "singular" | "plural" | "desc"
 
 eval-call ::= "eval" sp "(" sql-expr ")"
 sql-expr ::= sql-atom*

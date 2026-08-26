@@ -127,11 +127,18 @@ impl<'a> Resolver<'a> {
             .collect();
 
         for call in applies {
-            if let Some(comment) = &call.comment {
-                self.diags.push(Diagnostic::error(
-                    comment.span,
-                    "`apply_blueprint` に `comment=` は書けない。blueprint 内の `table` に書く",
-                ));
+            for (key, span) in [
+                ("name", call.table_name.as_ref().map(|v| v.span)),
+                ("comment", call.comment.as_ref().map(|c| c.span)),
+            ] {
+                if let Some(span) = span {
+                    self.diags.push(Diagnostic::error(
+                        span,
+                        format!(
+                            "`apply_blueprint` に `{key}=` は書けない。blueprint 内の `table` に書く"
+                        ),
+                    ));
+                }
             }
             let Some((bp_name, args)) = call.args.split_first() else {
                 self.diags.push(Diagnostic::error(
@@ -166,7 +173,15 @@ impl<'a> Resolver<'a> {
             let mut scope: Scope = HashMap::new();
             for (param, arg) in bp.params.iter().zip(args) {
                 let noun = Compound::noun(arg.value.clone());
-                self.check_nouns_registered(&noun, arg.span);
+                if self.dict.get(&arg.value).is_none() {
+                    self.diags.push(Diagnostic::error(
+                        arg.span,
+                        format!(
+                            "`{}` が `nouns` に無い。blueprint の引数は名詞に限る",
+                            arg.value
+                        ),
+                    ));
+                }
                 self.check_shadowing(param);
                 scope.insert(param.value.clone(), noun);
             }
@@ -285,6 +300,55 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// コメント文字列の `${...}` を展開する。
+    ///
+    /// 参照できるのは名詞。blueprint の仮引数と `let` 束縛もそのまま使える。
+    fn render_comment(&mut self, text: &Spanned<String>, scope: &Scope) -> String {
+        if !text.value.contains("${") {
+            return text.value.clone();
+        }
+        let tpl = match Template::parse(&text.value) {
+            Ok(tpl) => tpl,
+            Err(message) => {
+                self.diags.push(Diagnostic::error(text.span, message));
+                return text.value.clone();
+            }
+        };
+
+        let sep = self.separator();
+        let mut out = String::new();
+        for seg in &tpl.segments {
+            match seg {
+                Seg::Text(t) => out.push_str(t),
+                Seg::Var(name) => {
+                    let noun = self.resolve_noun(&Spanned::new(name.clone(), text.span), scope);
+                    out.push_str(&noun.singular(&self.dict, &sep));
+                }
+                Seg::Call { func, arg } => {
+                    let noun = self.resolve_noun(&Spanned::new(arg.clone(), text.span), scope);
+                    match func.as_str() {
+                        "plural" => out.push_str(&noun.plural(&self.dict, &sep)),
+                        "singular" => out.push_str(&noun.singular(&self.dict, &sep)),
+                        _ => match self.noun_description(&noun) {
+                            Some(desc) => out.push_str(&desc),
+                            None => self.diags.push(Diagnostic::error(
+                                text.span,
+                                format!("`{arg}` に説明が無い。`nouns` の第3列に書く"),
+                            )),
+                        },
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// 名詞の説明。複合名詞では最後の名詞のものを使う。
+    fn noun_description(&self, noun: &Compound) -> Option<String> {
+        let last = noun.nouns().last()?;
+        self.dict.get(last).and_then(|e| e.comment.clone())
+    }
+
     /// 名詞の各要素が辞書にあるか確かめる。
     fn check_nouns_registered(&mut self, c: &Compound, span: Span) {
         let missing: Vec<String> = c
@@ -349,6 +413,7 @@ impl<'a> Resolver<'a> {
 
         let mut relations: Vec<RelationSpec> = Vec::new();
         let mut reverses: Vec<ast::Relation> = Vec::new();
+        let mut own_comment: Option<Spanned<String>> = None;
         let mut seen = Vec::new();
         self.walk_members(
             &p.ast.members,
@@ -363,6 +428,7 @@ impl<'a> Resolver<'a> {
             &mut overrides,
             &mut relations,
             &mut reverses,
+            &mut own_comment,
         );
 
         for name in &excepts {
@@ -416,13 +482,15 @@ impl<'a> Resolver<'a> {
             }
         }
 
-        let comment = p.ast.comment.as_ref().map(|c| c.value.clone()).or_else(|| {
-            p.noun
+        let comment = match own_comment {
+            Some(text) => Some(self.render_comment(&text, &p.scope)),
+            None => p
+                .noun
                 .as_ref()
                 .and_then(Compound::as_single_noun)
                 .and_then(|n| self.dict.get(n))
-                .and_then(|n| n.comment.clone())
-        });
+                .and_then(|n| n.comment.clone()),
+        };
 
         relations.retain(|r| columns.contains_key(&r.column));
 
@@ -466,6 +534,7 @@ impl<'a> Resolver<'a> {
         overrides: &mut Vec<&'a ast::Override>,
         relations: &mut Vec<RelationSpec>,
         reverses: &mut Vec<ast::Relation>,
+        comment: &mut Option<Spanned<String>>,
     ) {
         for m in members {
             match &m.value {
@@ -508,8 +577,10 @@ impl<'a> Resolver<'a> {
                     overrides,
                     relations,
                     reverses,
+                    comment,
                 ),
                 ast::Member::Override(ov) => overrides.push(ov),
+                ast::Member::Comment(text) => *comment = Some(text.clone()),
                 ast::Member::Except(names) => excepts.extend(names.iter().cloned()),
                 ast::Member::ExceptIndex(cols) => {
                     except_indexes.push(cols.iter().map(|c| c.value.clone()).collect())
@@ -572,6 +643,7 @@ impl<'a> Resolver<'a> {
         overrides: &mut Vec<&'a ast::Override>,
         relations: &mut Vec<RelationSpec>,
         reverses: &mut Vec<ast::Relation>,
+        comment: &mut Option<Spanned<String>>,
     ) {
         if use_stack.contains(&name.value) {
             let path = use_stack.join(" -> ");
@@ -607,6 +679,7 @@ impl<'a> Resolver<'a> {
             overrides,
             relations,
             reverses,
+            comment,
         );
         use_stack.pop();
     }
@@ -742,8 +815,17 @@ impl<'a> Resolver<'a> {
                     .push(Diagnostic::error(call.span, "`associate` は引数を2つ取る"));
                 continue;
             };
-            let joined = Compound {
-                parts: vec![Part::Noun(a.value.clone()), Part::Noun(b.value.clone())],
+            let joined = match &call.table_name {
+                Some(value) => {
+                    let value = value.clone();
+                    match self.eval_noun(&value, &Scope::new()) {
+                        Some(noun) => noun,
+                        None => continue,
+                    }
+                }
+                None => Compound {
+                    parts: vec![Part::Noun(a.value.clone()), Part::Noun(b.value.clone())],
+                },
             };
             self.check_nouns_registered(&joined, call.span);
             let name = self.table_name_of(&joined);
@@ -790,7 +872,10 @@ impl<'a> Resolver<'a> {
             schema.tables.push(ir::Table {
                 name,
                 noun: None,
-                comment: call.comment.as_ref().map(|c| c.value.clone()),
+                comment: call
+                    .comment
+                    .clone()
+                    .map(|c| self.render_comment(&c, &Scope::new())),
                 columns,
                 pk,
                 indexes: Vec::new(),

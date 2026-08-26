@@ -60,6 +60,10 @@
           }
         },
         {
+          "match": "^\\s*\\b(comment)\\b(?=\\s*\")",
+          "name": "keyword.other.ddsl"
+        },
+        {
           "match": "\\b(pk|index|except|unique)\\b",
           "name": "keyword.other.ddsl"
         }
@@ -70,7 +74,7 @@
       "name": "support.function.macro.ddsl"
     },
     "function": {
-      "match": "\\b(eval|noun|singular|plural)\\b(?=\\s*\\()",
+      "match": "\\b(eval|noun|singular|plural|desc)\\b(?=\\s*\\()",
       "name": "support.function.ddsl"
     },
     "attribute": {
@@ -94,7 +98,7 @@
           "beginCaptures": { "0": { "name": "punctuation.definition.template-expression.begin.ddsl" } },
           "endCaptures": { "0": { "name": "punctuation.definition.template-expression.end.ddsl" } },
           "patterns": [
-            { "match": "\\b(singular|plural)\\b", "name": "support.function.ddsl" },
+            { "match": "\\b(singular|plural|desc)\\b", "name": "support.function.ddsl" },
             { "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b", "name": "variable.other.ddsl" }
           ]
         }

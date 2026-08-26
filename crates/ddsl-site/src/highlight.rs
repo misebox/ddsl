@@ -22,6 +22,7 @@ const STATEMENT_KEYWORDS: &[&str] = &[
     "has_one",
     "let",
     "unique",
+    "comment",
 ];
 
 /// 宣言文のうち、直後の識別子が「型・テーブル」を指すもの。
@@ -37,7 +38,7 @@ const NAMES_A_TYPE: &[&str] = &[
 ];
 
 const MACROS: &[&str] = &["associate", "apply_blueprint"];
-const FUNCTIONS: &[&str] = &["eval", "noun", "singular", "plural"];
+const FUNCTIONS: &[&str] = &["eval", "noun", "singular", "plural", "desc"];
 const CONSTANTS: &[&str] = &[
     "true",
     "false",

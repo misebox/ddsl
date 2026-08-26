@@ -10,6 +10,7 @@
 
 | 文 | 記法 |
 |---|---|
+| テーブルの説明 | `comment "..."` |
 | カラム宣言 | `column 名前 キー=値 ...` |
 | 主キー | `pk 列` / `pk [列, ...]` |
 | index | `index 列 [unique]` / `index [列, ...] [unique]` |
@@ -38,7 +39,7 @@ belongs_to user fk="sender_id"    # user は名詞の参照。sender_id は新�
 
 | マクロ | 記法 |
 |---|---|
-| 多対多 | `associate(a, b [, comment="..."])` |
+| 多対多 | `associate(a, b [, name=名詞] [, comment="..."])` |
 | blueprint適用 | `apply_blueprint(名前, 引数...)` |
 
 ### 関数（括弧あり）
@@ -49,14 +50,15 @@ belongs_to user fk="sender_id"    # user は名詞の参照。sender_id は新�
 |---|---|
 | `noun(a, b, ...)` | 複合名詞 |
 | `singular(x)` / `plural(x)` | 単数形 / 複数形の文字列 |
+| `desc(x)` | `nouns` の第3列（説明） |
 | `eval(x)` | DB側で評価される式 |
 
 ### ブロック
 
 ```
-table 名前 [comment="..."] { ... }
-mixin 名前 [comment="..."] { ... }
-blueprint 名前 引数... [comment="..."] { ... }
+table 名前 { ... }
+mixin 名前 { ... }
+blueprint 名前 引数... { ... }
 naming { ... }
 constraints { ... }
 nouns { ... }
@@ -156,7 +158,12 @@ FKを持つ側に `belongs_to` / `unique_belongs_to` を書く。参照される
 - `belongs_to 名詞`：FK列を生成する。型・on_delete・indexは config に従う。参照先PKが `smallserial` / `serial` / `bigserial` の場合、FK列の型は `smallint` / `integer` / `bigint` とする。
 - `unique_belongs_to 名詞`：`belongs_to` と同じくFK列を生成し、一意制約を付ける。one_to_one。
 - `has_many 名詞` / `has_one 名詞`：逆参照に名前を付ける。カラムも制約も生成しないため DDL には現れない。ORM のモデル生成でのみ使う。
-- `associate(a, b)`：グローバルスコープに書く。`noun(a, b)` から名前を決め、FK2列のみを持つ中間テーブルを生成し、`pk [a_id, b_id]` を付ける。`comment="..."` でテーブルにコメントを付けられる。FK列のコメントなど、これ以上のものが要る場合は、通常のテーブルに `belongs_to` を2つ書く。
+- `associate(a, b)`：グローバルスコープに書く。`noun(a, b)` から名前を決め、FK2列のみを持つ中間テーブルを生成し、`pk [a_id, b_id]` を付ける。`name=` でテーブルの名詞を、`comment=` でコメントを指定できる。FK列のコメントなど、これ以上のものが要る場合は、通常のテーブルに `belongs_to` を2つ書く。
+
+```
+associate(user, post)                                  # user_posts
+associate(user, post, name=favorite, comment="いいね")  # favorites
+```
 
 ### 属性
 
@@ -219,15 +226,41 @@ has_one  profile alias=noun("main", profile)   # main_profile
 
 ## comment
 
-`nouns` の第3列のほか、`table` / `blueprint` / `mixin` / `column` / `belongs_to` / `unique_belongs_to` / `associate` に `comment="..."` を書ける。
+ブロックを持つものは**文**で、持たないものは**属性**で書く。
+
+| 対象 | 書き方 |
+|---|---|
+| テーブル | `table` の中に `comment "..."` |
+| カラム | `column ... comment="..."` |
+| FK列 | `belongs_to ... comment="..."` |
+| `associate` が作るテーブル | `associate(a, b, comment="...")` |
 
 ```
-table user comment="ユーザー" {
+table user {
+  comment "ユーザー"
   column email type=text comment="ログインID"
 }
 ```
 
-`nouns` と `table` の両方に記述がある場合は `table` 側を採用する。
+`nouns` の第3列もテーブルのコメントになる。`table` の中に `comment` があればそちらを採用する。
+
+`mixin` と `blueprint` はテーブルにならないので `comment` を書けない。ソース上の注釈は `#` を使う。
+
+### 展開
+
+コメントの文字列では `${...}` が使える。参照できるのは名詞で、blueprint の仮引数と `let` 束縛もそのまま書ける。
+
+```
+blueprint audited target {
+  let t_history = noun(target, history)
+
+  table t_history {
+    comment "${desc(target)}の変更履歴"
+  }
+}
+
+apply_blueprint(audited, post)   # post_histories のコメントは「投稿の変更履歴」
+```
 
 ## config
 
@@ -301,7 +334,7 @@ apply_blueprint(approvable, post)
 
 ### 引数
 
-引数はすべて名詞。型注釈は書かない。渡す名詞は `nouns` に登録されていること。
+引数はすべて名詞。型注釈は書かない。渡す名詞は `nouns` に登録されていなければエラーとする。`desc()` で説明を引けるようにするため。
 
 ### 局所束縛 `let`
 
@@ -336,7 +369,8 @@ table t_approval { ... }                  # table_name=plural なので post_app
 - 出力ターゲットの予約語との衝突（警告）
 - `use` の循環参照
 - blueprint の仮引数名・`let` 束縛名と名詞の衝突
-- 名詞が `nouns` に無く規則変化で解決された場合は警告
+- 名詞が `nouns` に無く規則変化で解決された場合は警告。ただし blueprint の引数はエラー
+- `comment` の `${...}` が参照する名詞に説明が無い
 - `has_many` / `has_one` に対応するFKが無い
 - FKが複数あるのに `via=` が無い
 - `has_many` を `unique_belongs_to` に、`has_one` を `belongs_to` に対して書いている
@@ -379,6 +413,7 @@ nouns {
   post       posts       "投稿"
   profile    profiles    "プロフィール"
   history    histories   "履歴"
+  favorite   favorites   "いいね"
 }
 
 mixin primary_key {
@@ -408,10 +443,11 @@ mixin publishable {
   index published_at
 }
 
-blueprint audited target comment="変更履歴" {
+blueprint audited target {
   let t_history = noun(target, history)
 
-  table t_history comment="変更履歴" {
+  table t_history {
+    comment "${desc(target)}の変更履歴"
     use primary_key
     belongs_to target comment="変更対象"
     belongs_to user   comment="変更した人"
@@ -421,7 +457,8 @@ blueprint audited target comment="変更履歴" {
   }
 }
 
-table user comment="ユーザー" {
+table user {
+  comment "ユーザー"
   use base
   column email type=text comment="ログインID"
   column name  type=text comment="表示名"
@@ -477,6 +514,6 @@ table profile {
   column bio type=text null=true comment="自己紹介"
 }
 
-associate(user, post, comment="いいね")
+associate(user, post, name=favorite, comment="いいね")
 apply_blueprint(audited, post)
 ```
