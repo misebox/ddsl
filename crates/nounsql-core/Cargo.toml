@@ -14,5 +14,15 @@ readme = "README.md"
 # 結合テストはリポジトリの examples/ を参照するのでパッケージに含めない。
 exclude = ["tests"]
 
+[features]
+# 中間表現を JSON などに直列化できるようにする。
+serde = ["dep:serde", "indexmap/serde"]
+
 [dependencies]
 indexmap = "2.12"
+serde = { version = "1", features = ["derive"], optional = true }
+
+[dev-dependencies]
+# preserve_order が無いと Value がキーをソートしてしまい、
+# 宣言順を保っているという事実をテストできない。
+serde_json = { version = "1", features = ["preserve_order"] }

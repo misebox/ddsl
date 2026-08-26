@@ -504,6 +504,8 @@ impl<'a> Resolver<'a> {
         (
             ir::Table {
                 name: p.name.clone(),
+                singular: p.noun.as_ref().map(|n| self.singular_of(n)),
+                plural: p.noun.as_ref().map(|n| self.plural_of(n)),
                 noun: p.noun.clone(),
                 comment,
                 columns,
@@ -871,7 +873,9 @@ impl<'a> Resolver<'a> {
             let pk: Vec<String> = columns.keys().cloned().collect();
             schema.tables.push(ir::Table {
                 name,
-                noun: None,
+                singular: Some(self.singular_of(&joined)),
+                plural: Some(self.plural_of(&joined)),
+                noun: Some(joined),
                 comment: call
                     .comment
                     .clone()

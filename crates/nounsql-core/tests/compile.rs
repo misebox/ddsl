@@ -350,3 +350,69 @@ fn rejects_blueprint_param_shadowing_noun() {
         errors(&diags)
     );
 }
+
+/// 直列化した中間表現のキーは nounsql-wasm の TypeScript 型定義と対応している。
+/// 片方だけ変えると npm の利用者が壊れるので、ここで気づけるようにする。
+#[cfg(feature = "serde")]
+#[test]
+fn serialized_ir_keys_are_stable() {
+    use serde_json::Value;
+
+    let (schema, _) = compile(SAMPLE);
+    let json = serde_json::to_value(&schema).expect("直列化");
+
+    let keys = |v: &Value| -> Vec<String> {
+        v.as_object()
+            .expect("オブジェクト")
+            .keys()
+            .cloned()
+            .collect()
+    };
+
+    assert_eq!(keys(&json), vec!["tables"]);
+
+    let table = &json["tables"][0];
+    assert_eq!(
+        keys(table),
+        vec![
+            "name",
+            "singular",
+            "plural",
+            "comment",
+            "columns",
+            "pk",
+            "indexes",
+            "foreignKeys",
+            "reverses",
+            "origin",
+        ]
+    );
+
+    let column = table["columns"]
+        .as_object()
+        .expect("カラム")
+        .values()
+        .next()
+        .expect("1つ以上");
+    assert_eq!(
+        keys(column),
+        vec![
+            "name", "type", "null", "default", "onUpdate", "comment", "origin"
+        ]
+    );
+
+    // カラムは宣言順のまま出る。DDL の列順がこれで決まる。
+    let names: Vec<&str> = table["columns"]
+        .as_object()
+        .expect("カラム")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        names,
+        vec!["id", "created_at", "updated_at", "email", "name"]
+    );
+
+    // span のようなソース依存の情報は出さない。
+    assert!(!json.to_string().contains("span"));
+}
