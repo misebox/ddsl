@@ -12,7 +12,7 @@ pub enum Value {
     List(Vec<Name>),
     Call {
         name: Name,
-        args: Vec<Name>,
+        args: Vec<Spanned<Value>>,
     },
 }
 
@@ -77,8 +77,8 @@ pub struct Relation {
     pub target: Name,
     /// FK列名。`belongs_to` 系のみ。
     pub fk: Option<Spanned<String>>,
-    /// この側の関連名。
-    pub alias: Option<Spanned<String>>,
+    /// この側の関連名。文字列か `noun(...)`。
+    pub alias: Option<Spanned<Value>>,
     /// 対応するFK列名。`has_many` 系のみ。
     pub via: Option<Spanned<String>>,
 }
@@ -153,15 +153,15 @@ pub struct ConfigBlock {
 }
 
 #[derive(Debug, Clone)]
-pub struct Word {
+pub struct Noun {
     pub singular: Name,
     pub plural: Name,
     pub comment: Option<Spanned<String>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct WordsBlock {
-    pub entries: Vec<Word>,
+pub struct NounsBlock {
+    pub entries: Vec<Noun>,
     pub span: Span,
 }
 
@@ -169,7 +169,7 @@ pub struct WordsBlock {
 pub struct Document {
     pub naming: Option<ConfigBlock>,
     pub constraints: Option<ConfigBlock>,
-    pub words: Option<WordsBlock>,
+    pub nouns: Option<NounsBlock>,
     pub mixins: Vec<Mixin>,
     pub blueprints: Vec<Blueprint>,
     pub tables: Vec<Table>,

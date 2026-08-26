@@ -1,5 +1,6 @@
 use indexmap::IndexMap;
 
+use crate::dict::Compound;
 use crate::span::Span;
 
 /// 定義がどこから来たか。診断で定義元を指すのに使う。
@@ -77,8 +78,8 @@ pub struct Reverse {
 pub struct Table {
     /// 最終テーブル名。
     pub name: String,
-    /// 由来した語（単数形）。生成テーブルでは None。
-    pub word: Option<String>,
+    /// 由来した名詞。`associate` が生成したテーブルでは None。
+    pub noun: Option<Compound>,
     pub comment: Option<String>,
     pub columns: IndexMap<String, Column>,
     pub pk: Vec<String>,
@@ -99,7 +100,10 @@ impl Schema {
         self.tables.iter().find(|t| t.name == name)
     }
 
-    pub fn table_by_word(&self, word: &str) -> Option<&Table> {
-        self.tables.iter().find(|t| t.word.as_deref() == Some(word))
+    /// 単一の名詞から作られたテーブルを引く。
+    pub fn table_by_noun(&self, name: &str) -> Option<&Table> {
+        self.tables
+            .iter()
+            .find(|t| t.noun.as_ref().and_then(Compound::as_single_noun) == Some(name))
     }
 }

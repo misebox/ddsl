@@ -49,10 +49,10 @@ source
 - `column` / `pk` / `index` / `use` / `override` / `except` / `except index`
 - `belongs_to` / `unique_belongs_to`（`fk=` / `alias=`）と `has_many` / `has_one`（`via=` / `alias=`）
 - `mixin`（`use` の位置に展開、循環検出）
-- `blueprint`（`let` + `name_join`、仮引数と語の衝突検出）
+- `blueprint`（`let` + `noun()`、仮引数と名詞の衝突検出）
 - `associate` / `apply_blueprint`
 - `naming` / `constraints` の既定値と上書き
 - 出力ターゲットは `--dialect` で選択（既定 `postgres`）。型名・予約語・FK型の解決はターゲット側が持つ
-- `words` 辞書と規則変化フォールバック（辞書に無い語は警告）
+- `nouns` 辞書と複合名詞 `noun(a, b, ...)`（数は文脈が決める）。規則変化に落ちたら警告
 - DDL 出力: CREATE TABLE / INDEX / FK / COMMENT、`on_update=` はトリガに落とす
 # ddsl

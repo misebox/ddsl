@@ -2,11 +2,10 @@ naming {
   table_name = plural
   primary_key = "id"
   foreign_key = "${singular(table)}_id"
-  join_table = "${singular(a)}_${singular(b)}"
-  name_join = "${singular(a)}_${plural(b)}"
   index = "idx_${table}_${columns}"
   unique_index = "uq_${table}_${columns}"
   column_separator = "_"
+  noun_separator = "_"
 }
 
 constraints {
@@ -16,7 +15,7 @@ constraints {
   foreign_key_index = true
 }
 
-words {
+nouns {
   user       users       "ユーザー"
   category   categories  "商品カテゴリ"
   product    products    "商品"
@@ -56,7 +55,7 @@ mixin publishable {
 }
 
 blueprint audited target comment="変更履歴" {
-  let t_history = name_join(target, history)
+  let t_history = noun(target, history)
 
   table t_history {
     use primary_key
