@@ -66,7 +66,8 @@ COMMENT ON TABLE users IS 'ユーザー';
 | `blueprint` | 複数テーブルにまたがる構造を定義する。`let` でテーブル名を束縛する |
 | `belongs_to` / `associate` | FK と中間テーブルを生成する |
 | `has_many` / `has_one` | 逆参照に名前を付ける。DDL には出ない |
-| `words` | 単数形・複数形・コメントの辞書。テーブル名・FK列名・関連名の元になる |
+| `nouns` | 単数形・複数形・コメントの辞書。テーブル名・FK列名・関連名の元になる |
+| `noun(a, b, ...)` | 複合名詞を作る。数は使う側の文脈が決める |
 | `naming` / `constraints` | 命名規則と制約の既定値 |
 
 ## 構文の原則
@@ -74,7 +75,7 @@ COMMENT ON TABLE users IS 'ユーザー';
 - 1行1文。行頭のキーワードで文種が決まる
 - 属性は `キー=値`。bare keyword は使わない
 - テーブルの一部を設定する文は括弧なし（`use base` / `belongs_to user` / `index email unique`）
-- 引数リストを取るものだけが関数・マクロ（`associate(a, b)` / `name_join(a, b)` / `eval(now())`）
+- 引数リストを取るものだけが関数・マクロ（`associate(a, b)` / `noun(a, b)` / `eval(now())`）
 
 詳細は [仕様](spec.md)。
 

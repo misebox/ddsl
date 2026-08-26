@@ -73,10 +73,10 @@ CREATE TABLE post_histories (
   CONSTRAINT post_histories_pkey PRIMARY KEY (id)
 );
 
-CREATE TABLE user_post (
+CREATE TABLE user_posts (
   user_id integer NOT NULL,
   post_id integer NOT NULL,
-  CONSTRAINT user_post_pkey PRIMARY KEY (user_id, post_id)
+  CONSTRAINT user_posts_pkey PRIMARY KEY (user_id, post_id)
 );
 
 CREATE UNIQUE INDEX uq_users_email ON users (email);
@@ -100,8 +100,8 @@ ALTER TABLE posts ADD CONSTRAINT posts_category_id_fkey FOREIGN KEY (category_id
 ALTER TABLE profiles ADD CONSTRAINT profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE post_histories ADD CONSTRAINT post_histories_post_id_fkey FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE post_histories ADD CONSTRAINT post_histories_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE user_post ADD CONSTRAINT user_post_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE user_post ADD CONSTRAINT user_post_post_id_fkey FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE user_posts ADD CONSTRAINT user_posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE user_posts ADD CONSTRAINT user_posts_post_id_fkey FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE ON UPDATE CASCADE;
 
 CREATE OR REPLACE FUNCTION users_updated_at_on_update() RETURNS trigger AS $$
 BEGIN

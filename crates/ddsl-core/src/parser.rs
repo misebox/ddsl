@@ -21,7 +21,7 @@ type PResult<T> = Result<T, Bail>;
 
 const ATTR_KEYS: &[&str] = &["type", "null", "default", "on_update", "comment"];
 const RELATION_KEYS: &[&str] = &["fk", "alias", "via"];
-const VALUE_FNS: &[&str] = &["name_join", "singular", "plural"];
+const VALUE_FNS: &[&str] = &["noun", "singular", "plural"];
 
 struct Parser {
     tokens: Vec<Token>,
@@ -203,16 +203,16 @@ impl Parser {
                 }
                 Ok(())
             }
-            "words" => {
-                let block = self.words_block()?;
-                if let Some(prev) = &doc.words {
+            "nouns" => {
+                let block = self.nouns_block()?;
+                if let Some(prev) = &doc.nouns {
                     let prev_span = prev.span;
                     self.diags.push(
-                        Diagnostic::error(block.span, "`words` ブロックが重複している")
+                        Diagnostic::error(block.span, "`nouns` ブロックが重複している")
                             .with_label(prev_span, "最初の定義"),
                     );
                 } else {
-                    doc.words = Some(block);
+                    doc.nouns = Some(block);
                 }
                 Ok(())
             }
@@ -283,8 +283,8 @@ impl Parser {
         Ok(Assign { key, value })
     }
 
-    fn words_block(&mut self) -> PResult<WordsBlock> {
-        let start = self.expect_ident("`words`")?.span;
+    fn nouns_block(&mut self) -> PResult<NounsBlock> {
+        let start = self.expect_ident("`nouns`")?.span;
         if self.expect(Tok::LBrace).is_err() {
             self.recover_block();
             return Err(Bail);
@@ -295,7 +295,7 @@ impl Parser {
             if self.at(&Tok::RBrace) || self.at(&Tok::Eof) {
                 break;
             }
-            match self.word() {
+            match self.noun_entry() {
                 Ok(e) => {
                     entries.push(e);
                     if self.end_of_statement().is_err() {
@@ -306,20 +306,20 @@ impl Parser {
             }
         }
         let end = self.expect(Tok::RBrace).unwrap_or(self.prev_span());
-        Ok(WordsBlock {
+        Ok(NounsBlock {
             entries,
             span: start.join(end),
         })
     }
 
-    fn word(&mut self) -> PResult<Word> {
+    fn noun_entry(&mut self) -> PResult<Noun> {
         let singular = self.expect_ident("単数形")?;
         let plural = self.expect_ident("複数形")?;
         let comment = match self.peek() {
             Tok::Str(_) => Some(self.expect_string("コメント")?),
             _ => None,
         };
-        Ok(Word {
+        Ok(Noun {
             singular,
             plural,
             comment,
@@ -480,19 +480,26 @@ impl Parser {
                     ),
                 ));
             }
-            let value = self.expect_string("名前（文字列）")?;
-            let slot = match key.as_str() {
-                "fk" => &mut rel.fk,
-                "alias" => &mut rel.alias,
-                _ => &mut rel.via,
+            let duplicated = match key.as_str() {
+                "alias" => {
+                    let value = self.value()?;
+                    rel.alias.replace(value).is_some()
+                }
+                "fk" => {
+                    let value = self.expect_string("列名（文字列）")?;
+                    rel.fk.replace(value).is_some()
+                }
+                _ => {
+                    let value = self.expect_string("列名（文字列）")?;
+                    rel.via.replace(value).is_some()
+                }
             };
-            if slot.is_some() {
+            if duplicated {
                 self.diags.push(Diagnostic::error(
                     key_span,
                     format!("`{key}` が重複している"),
                 ));
             }
-            *slot = Some(value);
         }
         if rel.fk.is_some() && !kind.owns_fk() {
             let span = rel.fk.as_ref().map(|f| f.span).unwrap_or(rel.target.span);
@@ -693,7 +700,7 @@ impl Parser {
                         if self.at(&Tok::RParen) {
                             break;
                         }
-                        args.push(self.expect_ident("引数")?);
+                        args.push(self.value()?);
                         if !self.eat(&Tok::Comma) {
                             break;
                         }

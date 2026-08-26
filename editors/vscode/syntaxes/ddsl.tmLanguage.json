@@ -31,7 +31,7 @@
           }
         },
         {
-          "match": "^\\s*\\b(naming|constraints|words)\\b",
+          "match": "^\\s*\\b(naming|constraints|nouns)\\b",
           "name": "keyword.control.ddsl"
         }
       ]
@@ -70,7 +70,7 @@
       "name": "support.function.macro.ddsl"
     },
     "function": {
-      "match": "\\b(eval|name_join|singular|plural)\\b(?=\\s*\\()",
+      "match": "\\b(eval|noun|singular|plural)\\b(?=\\s*\\()",
       "name": "support.function.ddsl"
     },
     "attribute": {

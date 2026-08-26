@@ -17,19 +17,19 @@
 | 上書き | `override 列 キー=値 ...` |
 | 除外 | `except 名前` / `except [名前, ...]` |
 | index除外 | `except index 列` / `except index [列, ...]` |
-| 従属 | `belongs_to 語 [fk="..."] [alias="..."]` |
-| 1対1従属 | `unique_belongs_to 語 [fk="..."] [alias="..."]` |
-| 逆参照（多） | `has_many 語 [via="..."] [alias="..."]` |
-| 逆参照（1対1） | `has_one 語 [via="..."] [alias="..."]` |
+| 従属 | `belongs_to 名詞 [fk="..."] [alias="..."]` |
+| 1対1従属 | `unique_belongs_to 名詞 [fk="..."] [alias="..."]` |
+| 逆参照（多） | `has_many 名詞 [via="..."] [alias="..."]` |
+| 逆参照（1対1） | `has_one 名詞 [via="..."] [alias="..."]` |
 | 局所束縛（blueprint内） | `let 名前 = 式` |
 
 列リストは単一なら角括弧を省略できる。
 
-宣言位置（`column` や `table` の直後）には新しい名前を裸で書く。値位置（`キー=値` の右辺）の裸の識別子は参照（語・型名・キーワード）を表す。値位置に新しい名前を書くときは文字列にする。
+宣言位置（`column` や `table` の直後）には新しい名前を裸で書く。値位置（`キー=値` の右辺）の裸の識別子は参照（名詞・型名・キーワード）を表す。値位置に新しい名前を書くときは文字列にする。
 
 ```
 column email type=text            # email は宣言位置。text は型名の参照
-belongs_to user fk="sender_id"    # user は語の参照。sender_id は新しい名前
+belongs_to user fk="sender_id"    # user は名詞の参照。sender_id は新しい名前
 ```
 
 ### マクロ
@@ -47,8 +47,8 @@ belongs_to user fk="sender_id"    # user は語の参照。sender_id は新し�
 
 | 関数 | 戻り値 |
 |---|---|
-| `singular(x)` / `plural(x)` | 命名辞書で解決した単数形 / 複数形 |
-| `name_join(a, b)` | 結合したテーブル名 |
+| `noun(a, b, ...)` | 複合名詞 |
+| `singular(x)` / `plural(x)` | 単数形 / 複数形の文字列 |
 | `eval(x)` | DB側で評価される式 |
 
 ### ブロック
@@ -59,7 +59,7 @@ mixin 名前 [comment="..."] { ... }
 blueprint 名前 引数... [comment="..."] { ... }
 naming { ... }
 constraints { ... }
-words { ... }
+nouns { ... }
 ```
 
 ### 値の種類
@@ -153,17 +153,17 @@ except  index published_at
 
 FKを持つ側に `belongs_to` / `unique_belongs_to` を書く。参照される側に `has_many` / `has_one` を書く。
 
-- `belongs_to 語`：FK列を生成する。型・on_delete・indexは config に従う。参照先PKが `smallserial` / `serial` / `bigserial` の場合、FK列の型は `smallint` / `integer` / `bigint` とする。
-- `unique_belongs_to 語`：`belongs_to` と同じくFK列を生成し、一意制約を付ける。one_to_one。
-- `has_many 語` / `has_one 語`：逆参照に名前を付ける。カラムも制約も生成しないため DDL には現れない。ORM のモデル生成でのみ使う。
-- `associate(a, b)`：グローバルスコープに書く。FK2列のみを持つ中間テーブルを生成し、`pk [a_id, b_id]` を付ける。中間テーブルにカラムを追加する場合は、通常のテーブルに `belongs_to` を2つ書く。
+- `belongs_to 名詞`：FK列を生成する。型・on_delete・indexは config に従う。参照先PKが `smallserial` / `serial` / `bigserial` の場合、FK列の型は `smallint` / `integer` / `bigint` とする。
+- `unique_belongs_to 名詞`：`belongs_to` と同じくFK列を生成し、一意制約を付ける。one_to_one。
+- `has_many 名詞` / `has_one 名詞`：逆参照に名前を付ける。カラムも制約も生成しないため DDL には現れない。ORM のモデル生成でのみ使う。
+- `associate(a, b)`：グローバルスコープに書く。`noun(a, b)` から名前を決め、FK2列のみを持つ中間テーブルを生成し、`pk [a_id, b_id]` を付ける。中間テーブルにカラムを追加する場合は、通常のテーブルに `belongs_to` を2つ書く。
 
 ### 属性
 
 | キー | 書ける文 | 意味 | 既定値 |
 |---|---|---|---|
 | `fk` | `belongs_to` / `unique_belongs_to` | FK列名 | `naming.foreign_key` |
-| `alias` | 4文すべて | その側の関連名 | `naming.belongs_to` / `naming.has_many` / `naming.has_one` |
+| `alias` | 4文すべて | その側の関連名。文字列か `noun(...)` | `naming.belongs_to` / `naming.has_many` / `naming.has_one` |
 | `via` | `has_many` / `has_one` | 対応するFK列名 | 参照が1本ならその列 |
 
 ```
@@ -182,19 +182,41 @@ table user {
 
 ### 対応付け
 
-`has_many` / `has_one` は、その語のテーブルからこのテーブルへ向かうFKに対応する。FKが複数ある場合は `via=` で選ぶ。
+`has_many` / `has_one` は、その名詞のテーブルからこのテーブルへ向かうFKに対応する。FKが複数ある場合は `via=` で選ぶ。
 
-## words
+## nouns
 
-語の辞書。`singular plural comment` の順で列挙する。`singular()` / `plural()` はこの辞書で解決する。辞書に無い語は規則変化にフォールバックする。
+名詞の辞書。`singular plural comment` の順で列挙する。`singular()` / `plural()` はこの辞書で解決する。辞書に無い名詞は規則変化にフォールバックし、警告を出す。
 
-テーブル名・列名・関連名はすべて語から組み立てる。単複を引くためだけの語を登録してよく、`table` 宣言の無いエントリはエラーにしない。
+テーブル名・列名・関連名はすべて名詞から組み立てる。`table` 宣言の無いエントリはエラーにしない。名前の部品としてしか使わない名詞（`item` / `history` など）も登録する。
 
-複合語の複数形は `name_join()` で組み立てる。
+単数形と複数形を持たないもの（`sent` のような修飾語）はここに書かない。文字列として直接書く。
+
+## 複合名詞
+
+`noun(a, b, ...)` は複数の要素から名詞を作る。戻り値は文字列ではなく**名詞**であり、単数形と複数形の両方を持つ。
+
+- 最後の要素だけが文脈の数に従う
+- それ以外の要素は単数形になる
+- 文字列の要素は屈折しない
+
+```
+noun("sent", message)   # 単数形 sent_message / 複数形 sent_messages
+noun(order, item)       # 単数形 order_item   / 複数形 order_items
+```
+
+数は使う側が決める。
+
+```
+has_many message alias=noun("sent", message)   # sent_messages
+has_one  profile alias=noun("main", profile)   # main_profile
+```
+
+連結には `naming.noun_separator` を使う。
 
 ## comment
 
-`words` の第3列のほか、`table` / `blueprint` / `mixin` / `column` に `comment="..."` を書ける。
+`nouns` の第3列のほか、`table` / `blueprint` / `mixin` / `column` に `comment="..."` を書ける。
 
 ```
 table user comment="ユーザー" {
@@ -202,7 +224,7 @@ table user comment="ユーザー" {
 }
 ```
 
-`words` と `table` の両方に記述がある場合は `table` 側を採用する。
+`nouns` と `table` の両方に記述がある場合は `table` 側を採用する。
 
 ## config
 
@@ -219,20 +241,19 @@ naming {
   table_name = plural
   primary_key = "id"
   foreign_key = "${singular(table)}_id"
-  join_table = "${singular(a)}_${singular(b)}"
-  name_join = "${singular(a)}_${plural(b)}"
   index = "idx_${table}_${columns}"
   unique_index = "uq_${table}_${columns}"
   column_separator = "_"
+  noun_separator = "_"
   belongs_to = "${singular(table)}"
   has_many = "${plural(table)}"
   has_one = "${singular(table)}"
 }
 ```
 
-`${columns}` は複数列のとき `column_separator` で連結する。
+`${columns}` は複数列のとき `column_separator` で連結する。複合名詞は `noun_separator` で連結する。
 
-`belongs_to` は参照先の語、`has_many` / `has_one` はFKを持つ側の語を `table` として展開する。
+`belongs_to` は参照先の名詞、`has_many` / `has_one` はFKを持つ側の名詞を `table` として展開する。
 
 ### `constraints`
 
@@ -256,8 +277,8 @@ constraints {
 
 ```
 blueprint approvable target comment="承認フロー" {
-  let t_approval = name_join(target, approval)
-  let t_step     = name_join(t_approval, step)
+  let t_approval = noun(target, approval)
+  let t_step     = noun(t_approval, step)
 
   table t_approval {
     use primary_key
@@ -277,11 +298,11 @@ apply_blueprint(approvable, post)
 
 ### 引数
 
-引数はすべて語。型注釈は書かない。渡す語は `words` に登録されていること。
+引数はすべて名詞。型注釈は書かない。渡す名詞は `nouns` に登録されていること。
 
 ### 局所束縛 `let`
 
-`let 名前 = 式` でテーブル名を束縛する。再代入は不可。
+`let 名前 = 式` で名詞を束縛する。再代入は不可。
 
 ### 名前解決
 
@@ -289,15 +310,18 @@ apply_blueprint(approvable, post)
 
 1. 仮引数
 2. `let` 束縛
-3. 語
+3. 名詞
 
-仮引数名・`let` 束縛名が語と衝突した場合はエラー。
+仮引数名・`let` 束縛名が名詞と衝突した場合はエラー。
 
-### `name_join`
+### `let` が束縛するもの
 
-`naming.name_join` の規則で最終テーブル名を返す。`table_name` は適用しない。
+`let` は名詞を束縛する。テーブル名はそこから `table_name` で決まる。
 
-`name_join(post, approval)` → `post_approvals`
+```
+let t_approval = noun(target, approval)   # 名詞 post_approval / post_approvals
+table t_approval { ... }                  # table_name=plural なので post_approvals
+```
 
 ## バリデーション
 
@@ -308,8 +332,8 @@ apply_blueprint(approvable, post)
 - テーブル名・列名の重複
 - 出力ターゲットの予約語との衝突（警告）
 - `use` の循環参照
-- blueprint の仮引数名・`let` 束縛名と語の衝突
-- 単複が辞書に無く規則変化で解決された場合は警告
+- blueprint の仮引数名・`let` 束縛名と名詞の衝突
+- 名詞が `nouns` に無く規則変化で解決された場合は警告
 - `has_many` / `has_one` に対応するFKが無い
 - FKが複数あるのに `via=` が無い
 - `has_many` を `unique_belongs_to` に、`has_one` を `belongs_to` に対して書いている
@@ -329,11 +353,10 @@ naming {
   table_name = plural
   primary_key = "id"
   foreign_key = "${singular(table)}_id"
-  join_table = "${singular(a)}_${singular(b)}"
-  name_join = "${singular(a)}_${plural(b)}"
   index = "idx_${table}_${columns}"
   unique_index = "uq_${table}_${columns}"
   column_separator = "_"
+  noun_separator = "_"
 }
 
 constraints {
@@ -343,7 +366,7 @@ constraints {
   foreign_key_index = true
 }
 
-words {
+nouns {
   user       users       "ユーザー"
   category   categories  "商品カテゴリ"
   product    products    "商品"
@@ -383,7 +406,7 @@ mixin publishable {
 }
 
 blueprint audited target comment="変更履歴" {
-  let t_history = name_join(target, history)
+  let t_history = noun(target, history)
 
   table t_history {
     use primary_key

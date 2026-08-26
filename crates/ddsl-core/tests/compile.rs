@@ -81,10 +81,38 @@ fn blueprint_generates_table_via_name_join() {
 }
 
 #[test]
-fn associate_makes_composite_pk() {
+fn associate_makes_composite_pk_and_plural_name() {
     let (schema, _) = compile(SAMPLE);
-    let t = schema.table("user_post").expect("user_post");
+    let t = schema.table("user_posts").expect("user_posts");
     assert_eq!(t.pk, vec!["user_id", "post_id"]);
+}
+
+#[test]
+fn compound_noun_number_follows_context() {
+    let src = concat!(
+        "nouns {\n  user users \"u\"\n  message messages \"m\"\n",
+        "  profile profiles \"p\"\n}\n",
+        "mixin base {\n  column id type=serial\n  pk id\n}\n",
+        "table user {\n  use base\n",
+        "  has_many message alias=noun(\"sent\", message)\n",
+        "  has_one profile alias=noun(\"main\", profile)\n}\n",
+        "table message {\n  use base\n  belongs_to user\n}\n",
+        "table profile {\n  use base\n  unique_belongs_to user\n}\n"
+    );
+    let (schema, diags) = compile(src);
+    assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
+    let users = schema.table("users").expect("users");
+    let aliases: Vec<&str> = users.reverses.iter().map(|r| r.alias.as_str()).collect();
+    // 同じ noun(...) でも has_many は複数形、has_one は単数形になる
+    assert!(aliases.contains(&"sent_messages"), "{aliases:?}");
+    assert!(aliases.contains(&"main_profile"), "{aliases:?}");
+}
+
+#[test]
+fn compound_noun_inflects_only_the_last_element() {
+    let (schema, _) = compile(SAMPLE);
+    // blueprint の let noun(target, history) が post_histories になる
+    assert!(schema.table("post_histories").is_some());
 }
 
 #[test]
@@ -118,7 +146,7 @@ fn belongs_to_alias_defaults_to_singular() {
 }
 
 const TWO_FKS: &str = concat!(
-    "words {\n  user users \"u\"\n  message messages \"m\"\n}\n",
+    "nouns {\n  user users \"u\"\n  message messages \"m\"\n}\n",
     "mixin base {\n  column id type=serial\n  pk id\n}\n",
     "table user {\n  use base\n",
     "  has_many message via=\"sender_id\" alias=\"sent\"\n",
@@ -155,7 +183,7 @@ fn requires_via_when_several_fks_match() {
 #[test]
 fn rejects_has_many_on_one_to_one() {
     let src = concat!(
-        "words {\n  user users \"u\"\n  profile profiles \"p\"\n}\n",
+        "nouns {\n  user users \"u\"\n  profile profiles \"p\"\n}\n",
         "mixin base {\n  column id type=serial\n  pk id\n}\n",
         "table user {\n  use base\n  has_many profile\n}\n",
         "table profile {\n  use base\n  unique_belongs_to user\n}\n"
@@ -215,15 +243,15 @@ fn rejects_override_of_missing_column() {
 }
 
 #[test]
-fn rejects_blueprint_param_shadowing_word() {
+fn rejects_blueprint_param_shadowing_noun() {
     let src = concat!(
-        "words {\n  user users \"u\"\n  post posts \"p\"\n}\n",
-        "blueprint b user {\n  let t = name_join(user, post)\n  table t {\n    column x type=text\n  }\n}\n",
+        "nouns {\n  user users \"u\"\n  post posts \"p\"\n}\n",
+        "blueprint b user {\n  let t = noun(user, post)\n  table t {\n    column x type=text\n  }\n}\n",
         "apply_blueprint(b, post)\n"
     );
     let (_, diags) = compile(src);
     assert!(
-        errors(&diags).iter().any(|m| m.contains("語と衝突")),
+        errors(&diags).iter().any(|m| m.contains("名詞と衝突")),
         "{:?}",
         errors(&diags)
     );

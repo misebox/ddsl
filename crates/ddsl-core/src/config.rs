@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::ast::{ConfigBlock, Document, Value};
 use crate::diag::Diagnostic;
+use crate::dict::Compound;
 use crate::span::Span;
 use crate::template::Template;
 
@@ -9,11 +10,10 @@ use crate::template::Template;
 const DEFAULT_NAMING: &[(&str, &str)] = &[
     ("primary_key", "id"),
     ("foreign_key", "${singular(table)}_id"),
-    ("join_table", "${singular(a)}_${singular(b)}"),
-    ("name_join", "${singular(a)}_${plural(b)}"),
     ("index", "idx_${table}_${columns}"),
     ("unique_index", "uq_${table}_${columns}"),
     ("column_separator", "_"),
+    ("noun_separator", "_"),
     ("belongs_to", "${singular(table)}"),
     ("has_many", "${plural(table)}"),
     ("has_one", "${singular(table)}"),
@@ -23,11 +23,10 @@ const NAMING_KEYS: &[&str] = &[
     "table_name",
     "primary_key",
     "foreign_key",
-    "join_table",
-    "name_join",
     "index",
     "unique_index",
     "column_separator",
+    "noun_separator",
     "belongs_to",
     "has_many",
     "has_one",
@@ -53,11 +52,10 @@ pub struct Naming {
     pub table_name: TableNameStyle,
     pub primary_key: String,
     pub foreign_key: Template,
-    pub join_table: Template,
-    pub name_join: Template,
     pub index: Template,
     pub unique_index: Template,
     pub column_separator: String,
+    pub noun_separator: String,
     pub belongs_to: Template,
     pub has_many: Template,
     pub has_one: Template,
@@ -92,11 +90,10 @@ impl Default for Config {
                 table_name: TableNameStyle::Plural,
                 primary_key: "id".into(),
                 foreign_key: t("foreign_key"),
-                join_table: t("join_table"),
-                name_join: t("name_join"),
                 index: t("index"),
                 unique_index: t("unique_index"),
                 column_separator: "_".into(),
+                noun_separator: "_".into(),
                 belongs_to: t("belongs_to"),
                 has_many: t("has_many"),
                 has_one: t("has_one"),
@@ -143,18 +140,18 @@ impl Config {
                         "`table_name` は `plural` か `singular`",
                     )),
                 },
-                "primary_key" | "column_separator" => match value_string(&entry.value.value) {
-                    Some(s) => {
-                        if key == "primary_key" {
-                            self.naming.primary_key = s.into();
-                        } else {
-                            self.naming.column_separator = s.into();
+                "primary_key" | "column_separator" | "noun_separator" => {
+                    match value_string(&entry.value.value) {
+                        Some(s) => match key {
+                            "primary_key" => self.naming.primary_key = s.into(),
+                            "column_separator" => self.naming.column_separator = s.into(),
+                            _ => self.naming.noun_separator = s.into(),
+                        },
+                        None => {
+                            diags.push(Diagnostic::error(span, format!("`{key}` には文字列を書く")))
                         }
                     }
-                    None => {
-                        diags.push(Diagnostic::error(span, format!("`{key}` には文字列を書く")))
-                    }
-                },
+                }
                 _ => {
                     let Some(s) = value_string(&entry.value.value) else {
                         diags.push(Diagnostic::error(span, format!("`{key}` には文字列を書く")));
@@ -163,8 +160,6 @@ impl Config {
                     match Template::parse(s) {
                         Ok(t) => match key {
                             "foreign_key" => self.naming.foreign_key = t,
-                            "join_table" => self.naming.join_table = t,
-                            "name_join" => self.naming.name_join = t,
                             "index" => self.naming.index = t,
                             "unique_index" => self.naming.unique_index = t,
                             "belongs_to" => self.naming.belongs_to = t,
@@ -245,7 +240,7 @@ fn value_bool(v: &Value) -> Option<bool> {
 }
 
 /// テンプレート展開の変数束縛。
-pub type Vars<'a> = HashMap<&'a str, String>;
+pub type Vars = HashMap<&'static str, Compound>;
 
 pub fn missing_var(span: Span, name: &str) -> Diagnostic {
     Diagnostic::error(

@@ -6,7 +6,7 @@ root ::= nls? (item (nls item)*)? nls?
 item ::=
       naming-block
     | constraints-block
-    | words-block
+    | nouns-block
     | mixin-block
     | blueprint-block
     | table-block
@@ -20,8 +20,8 @@ constraints-block ::= "constraints" sp "{" nls (assign nls)* "}"
 
 assign ::= sp ident sp "=" sp value
 
-words-block ::= "words" sp "{" nls (word nls)* "}"
-word ::= sp ident sp1 ident sp1 string
+nouns-block ::= "nouns" sp "{" nls (noun-entry nls)* "}"
+noun-entry ::= sp ident sp1 ident sp1 string
 
 # ---------- mixin ----------
 
@@ -57,7 +57,7 @@ unique-belongs-to-stmt ::= "unique_belongs_to" sp1 ident (sp1 rel-attr)*
 has-many-stmt ::= "has_many" sp1 ident (sp1 rel-attr)*
 has-one-stmt ::= "has_one" sp1 ident (sp1 rel-attr)*
 
-rel-attr ::= rel-key sp "=" sp (string | fn-call)
+rel-attr ::= rel-key sp "=" sp (fn-call | string)
 rel-key ::= "fk" | "alias" | "via"
 
 attr ::= attr-key sp "=" sp value
@@ -84,8 +84,9 @@ apply-blueprint ::= "apply_blueprint" sp "(" sp ident (sp "," sp ident)+ sp ")"
 value ::= eval-call | fn-call | string | list | ident
 expr ::= fn-call | string | ident
 
-fn-call ::= fn-name sp "(" sp ident (sp "," sp ident)* sp ")"
-fn-name ::= "name_join" | "singular" | "plural"
+fn-call ::= fn-name sp "(" sp fn-arg (sp "," sp fn-arg)* sp ")"
+fn-arg ::= fn-call | string | ident
+fn-name ::= "noun" | "singular" | "plural"
 
 eval-call ::= "eval" sp "(" sql-expr ")"
 sql-expr ::= sql-atom*

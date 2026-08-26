@@ -6,7 +6,7 @@ const BLOCK_KEYWORDS: &[&str] = &[
     "blueprint",
     "naming",
     "constraints",
-    "words",
+    "nouns",
 ];
 
 const STATEMENT_KEYWORDS: &[&str] = &[
@@ -37,7 +37,7 @@ const NAMES_A_TYPE: &[&str] = &[
 ];
 
 const MACROS: &[&str] = &["associate", "apply_blueprint"];
-const FUNCTIONS: &[&str] = &["eval", "name_join", "singular", "plural"];
+const FUNCTIONS: &[&str] = &["eval", "noun", "singular", "plural"];
 const CONSTANTS: &[&str] = &[
     "true",
     "false",

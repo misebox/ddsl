@@ -35,7 +35,7 @@ const BLOCK_KEYWORDS: &[&str] = &[
     "blueprint",
     "naming",
     "constraints",
-    "words",
+    "nouns",
 ];
 
 const ATTR_KEYS: &[&str] = &[
@@ -200,11 +200,11 @@ impl LanguageServer for Backend {
         let text = match &r {
             Reference::Mixin(n) => format!("mixin `{n}`"),
             Reference::Blueprint(n) => format!("blueprint `{n}`"),
-            Reference::Word(n) => {
+            Reference::Noun(n) => {
                 let (schema, _) = resolve(&a.doc, dialect::default());
-                match schema.table_by_word(n) {
-                    Some(t) => format!("語 `{n}` → テーブル `{}`", t.name),
-                    None => format!("語 `{n}`"),
+                match schema.table_by_noun(n) {
+                    Some(t) => format!("名詞 `{n}` → テーブル `{}`", t.name),
+                    None => format!("名詞 `{n}`"),
                 }
             }
         };
@@ -288,9 +288,9 @@ impl LanguageServer for Backend {
         for b in &a.doc.blueprints {
             push(&b.name.value, CompletionItemKind::MODULE, "blueprint");
         }
-        if let Some(e) = &a.doc.words {
+        if let Some(e) = &a.doc.nouns {
             for entry in &e.entries {
-                push(&entry.singular.value, CompletionItemKind::CLASS, "語");
+                push(&entry.singular.value, CompletionItemKind::CLASS, "名詞");
             }
         }
         Ok(Some(CompletionResponse::Array(items)))

@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use indexmap::IndexMap;
 
 use crate::ast::{self, Document, Value};
-use crate::config::{Config, TableNameStyle};
+use crate::config::{Config, TableNameStyle, Vars};
 use crate::diag::Diagnostic;
 use crate::dialect::Dialect;
-use crate::dict::{Dict, Resolved, singularize};
+use crate::dict::{Compound, Dict, Part};
 use crate::ir;
 use crate::span::{Span, Spanned};
 use crate::template::{Seg, Template};
@@ -14,7 +14,7 @@ use crate::template::{Seg, Template};
 pub fn resolve(doc: &Document, dialect: Dialect) -> (ir::Schema, Vec<Diagnostic>) {
     let mut diags = Vec::new();
     let config = Config::from_document(doc, &mut diags);
-    let dict = Dict::from_block(doc.words.as_ref());
+    let dict = Dict::from_block(doc.nouns.as_ref());
     let mut r = Resolver {
         doc,
         dialect,
@@ -28,23 +28,17 @@ pub fn resolve(doc: &Document, dialect: Dialect) -> (ir::Schema, Vec<Diagnostic>
     (schema, r.diags)
 }
 
-/// blueprint 内の識別子が指すもの。
-#[derive(Debug, Clone)]
-enum Bound {
-    /// 仮引数に渡された語。
-    Word(String),
-    /// `let` で束縛された最終テーブル名。
-    Table(String),
-}
-
 /// 展開待ちのテーブル。名前だけ先に確定させる。
 struct Pending<'a> {
     ast: &'a ast::Table,
     name: String,
-    word: Option<String>,
-    scope: HashMap<String, Bound>,
+    noun: Option<Compound>,
+    scope: Scope,
     origin: ir::Origin,
 }
+
+/// blueprint 内で仮引数と `let` が束縛する名詞。
+type Scope = HashMap<String, Compound>;
 
 struct Resolver<'a> {
     doc: &'a Document,
@@ -108,26 +102,19 @@ impl<'a> Resolver<'a> {
             if self.dict.get(&word).is_none() {
                 self.diags.push(Diagnostic::warning(
                     t.name.span,
-                    format!("`{word}` が `words` に無い。規則変化で解決する"),
+                    format!("`{word}` が `nouns` に無い。規則変化で解決する"),
                 ));
             }
             pendings.push(Pending {
                 ast: t,
-                name: self.table_name_for(&word),
-                word: Some(word),
+                name: self.table_name_of(&Compound::noun(word.clone())),
+                noun: Some(Compound::noun(word)),
                 scope: HashMap::new(),
                 origin: ir::Origin::Own,
             });
         }
         pendings.extend(self.expand_blueprints());
         pendings
-    }
-
-    fn table_name_for(&self, word: &str) -> String {
-        match self.config.naming.table_name {
-            TableNameStyle::Plural => self.dict.plural(word).into_value(),
-            TableNameStyle::Singular => word.to_string(),
-        }
     }
 
     fn expand_blueprints(&mut self) -> Vec<Pending<'a>> {
@@ -170,50 +157,34 @@ impl<'a> Resolver<'a> {
                 continue;
             }
 
-            let mut scope: HashMap<String, Bound> = HashMap::new();
+            let mut scope: Scope = HashMap::new();
             for (param, arg) in bp.params.iter().zip(args) {
-                if self.dict.get(&arg.value).is_none() {
-                    self.diags.push(Diagnostic::warning(
-                        arg.span,
-                        format!("`{}` が `words` に無い", arg.value),
-                    ));
-                }
+                let noun = Compound::noun(arg.value.clone());
+                self.check_nouns_registered(&noun, arg.span);
                 self.check_shadowing(param);
-                scope.insert(param.value.clone(), Bound::Word(arg.value.clone()));
+                scope.insert(param.value.clone(), noun);
             }
 
             for item in &bp.items {
                 match item {
                     ast::BlueprintItem::Let(l) => {
                         self.check_shadowing(&l.name);
-                        match self.eval_let(&l.value, &scope) {
-                            Some(name) => {
-                                scope.insert(l.name.value.clone(), Bound::Table(name));
-                            }
-                            None => {
-                                self.diags.push(Diagnostic::error(
-                                    l.value.span,
-                                    "`let` の右辺を解決できない",
-                                ));
-                            }
+                        if let Some(noun) = self.eval_noun(&l.value, &scope) {
+                            scope.insert(l.name.value.clone(), noun);
                         }
                     }
                     ast::BlueprintItem::Table(t) => {
-                        let name = match scope.get(&t.name.value) {
-                            Some(Bound::Table(n)) => n.clone(),
-                            Some(Bound::Word(e)) => self.table_name_for(e),
-                            None => {
-                                self.diags.push(Diagnostic::error(
-                                    t.name.span,
-                                    format!("`{}` は blueprint 内で束縛されていない", t.name.value),
-                                ));
-                                continue;
-                            }
+                        let Some(noun) = scope.get(&t.name.value).cloned() else {
+                            self.diags.push(Diagnostic::error(
+                                t.name.span,
+                                format!("`{}` は blueprint 内で束縛されていない", t.name.value),
+                            ));
+                            continue;
                         };
                         out.push(Pending {
                             ast: t,
-                            name,
-                            word: None,
+                            name: self.table_name_of(&noun),
+                            noun: Some(noun),
                             scope: scope.clone(),
                             origin: ir::Origin::Blueprint {
                                 name: bp.name.value.clone(),
@@ -232,75 +203,126 @@ impl<'a> Resolver<'a> {
         if self.dict.get(&name.value).is_some() {
             self.diags.push(Diagnostic::error(
                 name.span,
-                format!("`{}` は語と衝突している", name.value),
+                format!("`{}` は名詞と衝突している", name.value),
             ));
         }
     }
 
-    fn eval_let(
-        &mut self,
-        value: &Spanned<Value>,
-        scope: &HashMap<String, Bound>,
-    ) -> Option<String> {
-        let Value::Call { name, args } = &value.value else {
-            self.diags.push(Diagnostic::error(
-                value.span,
-                "`let` の右辺には `name_join(a, b)` を書く",
-            ));
-            return None;
-        };
-        if name.value != "name_join" || args.len() != 2 {
-            self.diags.push(Diagnostic::error(
-                name.span,
-                "`let` の右辺には `name_join(a, b)` を書く",
-            ));
-            return None;
-        }
-        let a = self.base_name(&args[0], scope);
-        let b = self.base_name(&args[1], scope);
-        let vars = HashMap::from([("a", a), ("b", b)]);
-        Some(self.render(&self.config.naming.name_join.clone(), &vars, value.span))
-    }
-
-    /// blueprint スコープを踏まえて識別子の「単数形の基底名」を返す。
-    fn base_name(&self, ident: &Spanned<String>, scope: &HashMap<String, Bound>) -> String {
+    /// blueprint スコープを踏まえて識別子が指す名詞を返す。
+    fn resolve_noun(&self, ident: &Spanned<String>, scope: &Scope) -> Compound {
         match scope.get(&ident.value) {
-            Some(Bound::Word(e)) => e.clone(),
-            Some(Bound::Table(t)) => singularize(t),
-            None => ident.value.clone(),
+            Some(c) => c.clone(),
+            None => Compound::noun(ident.value.clone()),
+        }
+    }
+
+    fn separator(&self) -> String {
+        self.config.naming.noun_separator.clone()
+    }
+
+    fn singular_of(&self, c: &Compound) -> String {
+        c.singular(&self.dict, &self.separator())
+    }
+
+    fn plural_of(&self, c: &Compound) -> String {
+        c.plural(&self.dict, &self.separator())
+    }
+
+    fn table_name_of(&self, c: &Compound) -> String {
+        match self.config.naming.table_name {
+            TableNameStyle::Plural => self.plural_of(c),
+            TableNameStyle::Singular => self.singular_of(c),
+        }
+    }
+
+    /// `noun(...)` などの値を名詞として評価する。
+    fn eval_noun(&mut self, value: &Spanned<Value>, scope: &Scope) -> Option<Compound> {
+        match &value.value {
+            Value::Ident(name) => {
+                Some(self.resolve_noun(&Spanned::new(name.clone(), value.span), scope))
+            }
+            Value::Str(text) => Some(Compound::literal(text.clone())),
+            Value::Call { name, args } if name.value == "noun" => {
+                if args.is_empty() {
+                    self.diags
+                        .push(Diagnostic::error(value.span, "`noun()` に引数が無い"));
+                    return None;
+                }
+                let mut parts = Vec::new();
+                for arg in args {
+                    let c = self.eval_noun(arg, scope)?;
+                    parts.extend(c.parts);
+                }
+                Some(Compound { parts })
+            }
+            Value::Call { name, args } if matches!(name.value.as_str(), "singular" | "plural") => {
+                let [arg] = args.as_slice() else {
+                    self.diags.push(Diagnostic::error(
+                        value.span,
+                        format!("`{}()` は引数を1つ取る", name.value),
+                    ));
+                    return None;
+                };
+                let c = self.eval_noun(arg, scope)?;
+                let text = if name.value == "plural" {
+                    self.plural_of(&c)
+                } else {
+                    self.singular_of(&c)
+                };
+                Some(Compound::literal(text))
+            }
+            _ => {
+                self.diags
+                    .push(Diagnostic::error(value.span, "名詞として評価できない"));
+                None
+            }
+        }
+    }
+
+    /// 名詞の各要素が辞書にあるか確かめる。
+    fn check_nouns_registered(&mut self, c: &Compound, span: Span) {
+        let missing: Vec<String> = c
+            .nouns()
+            .filter(|n| self.dict.get(n).is_none())
+            .map(str::to_string)
+            .collect();
+        for name in missing {
+            self.diags.push(Diagnostic::warning(
+                span,
+                format!("`{name}` が `nouns` に無い。規則変化で解決する"),
+            ));
         }
     }
 
     // ---------- テンプレート ----------
 
-    fn render(&mut self, tpl: &Template, vars: &HashMap<&str, String>, span: Span) -> String {
+    fn render(&mut self, tpl: &Template, vars: &Vars, span: Span) -> String {
+        let sep = self.separator();
         let mut out = String::new();
         for seg in &tpl.segments {
-            match seg {
-                Seg::Text(t) => out.push_str(t),
-                Seg::Var(v) => match vars.get(v.as_str()) {
-                    Some(val) => out.push_str(val),
-                    None => {
-                        self.diags.push(Diagnostic::error(
-                            span,
-                            format!("テンプレート変数 `{v}` はここでは使えない"),
-                        ));
-                    }
-                },
-                Seg::Call { func, arg } => {
-                    let Some(val) = vars.get(arg.as_str()) else {
-                        self.diags.push(Diagnostic::error(
-                            span,
-                            format!("テンプレート変数 `{arg}` はここでは使えない"),
-                        ));
-                        continue;
-                    };
-                    let r: Resolved = match func.as_str() {
-                        "singular" => self.dict.singular(val),
-                        _ => self.dict.plural(val),
-                    };
-                    out.push_str(r.value());
+            let (name, rendered) = match seg {
+                Seg::Text(t) => {
+                    out.push_str(t);
+                    continue;
                 }
+                Seg::Var(v) => (v, vars.get(v.as_str()).map(|c| c.as_written(&sep))),
+                Seg::Call { func, arg } => (
+                    arg,
+                    vars.get(arg.as_str()).map(|c| {
+                        if func == "plural" {
+                            c.plural(&self.dict, &sep)
+                        } else {
+                            c.singular(&self.dict, &sep)
+                        }
+                    }),
+                ),
+            };
+            match rendered {
+                Some(text) => out.push_str(&text),
+                None => self.diags.push(Diagnostic::error(
+                    span,
+                    format!("テンプレート変数 `{name}` はここでは使えない"),
+                )),
             }
         }
         out
@@ -389,10 +411,11 @@ impl<'a> Resolver<'a> {
         }
 
         let comment = p.ast.comment.as_ref().map(|c| c.value.clone()).or_else(|| {
-            p.word
-                .as_deref()
-                .and_then(|w| self.dict.get(w))
-                .and_then(|w| w.comment.clone())
+            p.noun
+                .as_ref()
+                .and_then(Compound::as_single_noun)
+                .and_then(|n| self.dict.get(n))
+                .and_then(|n| n.comment.clone())
         });
 
         relations.retain(|r| columns.contains_key(&r.column));
@@ -407,7 +430,7 @@ impl<'a> Resolver<'a> {
         (
             ir::Table {
                 name: p.name.clone(),
-                word: p.word.clone(),
+                noun: p.noun.clone(),
                 comment,
                 columns,
                 pk,
@@ -427,7 +450,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         members: &'a [Spanned<ast::Member>],
         origin: &ir::Origin,
-        scope: &HashMap<String, Bound>,
+        scope: &Scope,
         use_stack: &mut Vec<String>,
         columns: &mut IndexMap<String, ir::Column>,
         pk: &mut Vec<String>,
@@ -489,8 +512,8 @@ impl<'a> Resolver<'a> {
                     let fk_col = match &rel.fk {
                         Some(name) => name.value.clone(),
                         None => {
-                            let base = self.base_name(&rel.target, scope);
-                            let vars = HashMap::from([("table", base)]);
+                            let target = self.resolve_noun(&rel.target, scope);
+                            let vars = Vars::from([("table", target)]);
                             self.render(&self.config.naming.foreign_key.clone(), &vars, m.span)
                         }
                     };
@@ -520,7 +543,7 @@ impl<'a> Resolver<'a> {
                         target: rel.target.clone(),
                         unique: rel.kind.is_unique(),
                         column: fk_col,
-                        alias: rel.alias.as_ref().map(|a| a.value.clone()),
+                        alias: rel.alias.clone(),
                         span: m.span,
                     });
                 }
@@ -533,7 +556,7 @@ impl<'a> Resolver<'a> {
     fn splice_mixin(
         &mut self,
         name: &Spanned<String>,
-        scope: &HashMap<String, Bound>,
+        scope: &Scope,
         use_stack: &mut Vec<String>,
         columns: &mut IndexMap<String, ir::Column>,
         pk: &mut Vec<String>,
@@ -650,14 +673,11 @@ impl<'a> Resolver<'a> {
     fn resolve_relation(
         &mut self,
         spec: &RelationSpec,
-        scope: &HashMap<String, Bound>,
+        scope: &Scope,
         schema: &ir::Schema,
     ) -> Option<ResolvedRelation> {
-        let base = self.base_name(&spec.target, scope);
-        let ref_table_name = match scope.get(&spec.target.value) {
-            Some(Bound::Table(t)) => t.clone(),
-            _ => self.table_name_for(&base),
-        };
+        let target = self.resolve_noun(&spec.target, scope);
+        let ref_table_name = self.table_name_of(&target);
         let Some(ref_table) = schema.table(&ref_table_name) else {
             self.diags.push(Diagnostic::error(
                 spec.target.span,
@@ -680,7 +700,7 @@ impl<'a> Resolver<'a> {
         Some(ResolvedRelation {
             ty,
             fk: ir::ForeignKey {
-                alias: self.relation_alias(spec, &base),
+                alias: self.relation_alias(spec, &target, scope),
                 columns: vec![spec.column.clone()],
                 ref_table: ref_table_name,
                 ref_columns: vec![ref_col_name],
@@ -716,14 +736,17 @@ impl<'a> Resolver<'a> {
                     .push(Diagnostic::error(call.span, "`associate` は引数を2つ取る"));
                 continue;
             };
-            let vars = HashMap::from([("a", a.value.clone()), ("b", b.value.clone())]);
-            let name = self.render(&self.config.naming.join_table.clone(), &vars, call.span);
+            let joined = Compound {
+                parts: vec![Part::Noun(a.value.clone()), Part::Noun(b.value.clone())],
+            };
+            self.check_nouns_registered(&joined, call.span);
+            let name = self.table_name_of(&joined);
 
             let mut columns = IndexMap::new();
             let mut fks = Vec::new();
             let mut ok = true;
             for side in [a, b] {
-                let vars = HashMap::from([("table", side.value.clone())]);
+                let vars = Vars::from([("table", Compound::noun(side.value.clone()))]);
                 let col_name =
                     self.render(&self.config.naming.foreign_key.clone(), &vars, call.span);
                 let spec = RelationSpec {
@@ -760,7 +783,7 @@ impl<'a> Resolver<'a> {
             let pk: Vec<String> = columns.keys().cloned().collect();
             schema.tables.push(ir::Table {
                 name,
-                word: None,
+                noun: None,
                 comment: None,
                 columns,
                 pk,
@@ -777,12 +800,18 @@ impl<'a> Resolver<'a> {
 
     // ---------- 逆参照 ----------
 
-    /// FKを持つ側の関連名。
-    fn relation_alias(&mut self, spec: &RelationSpec, base: &str) -> String {
+    /// FKを持つ側の関連名。名詞は単数形にする。
+    fn relation_alias(&mut self, spec: &RelationSpec, target: &Compound, scope: &Scope) -> String {
         match &spec.alias {
-            Some(a) => a.clone(),
+            Some(value) => {
+                let value = value.clone();
+                match self.eval_noun(&value, scope) {
+                    Some(c) => self.singular_of(&c),
+                    None => String::new(),
+                }
+            }
             None => {
-                let vars = HashMap::from([("table", base.to_string())]);
+                let vars = Vars::from([("table", target.clone())]);
                 self.render(&self.config.naming.belongs_to.clone(), &vars, spec.span)
             }
         }
@@ -807,7 +836,7 @@ impl<'a> Resolver<'a> {
                     .or_default()
                     .push(IncomingFk {
                         from_table: t.name.clone(),
-                        from_word: t.word.clone(),
+                        from_noun: t.noun.clone(),
                         columns: fk.columns.clone(),
                         unique,
                     });
@@ -824,10 +853,9 @@ impl<'a> Resolver<'a> {
             let scope = pendings.get(i).map(|p| p.scope.clone()).unwrap_or_default();
 
             for spec in &specs {
-                let base = self.base_name(&spec.target, &scope);
-                let from_table = match scope.get(&spec.target.value) {
-                    Some(Bound::Table(t)) => t.clone(),
-                    _ => self.table_name_for(&base),
+                let from_table = {
+                    let noun = self.resolve_noun(&spec.target, &scope);
+                    self.table_name_of(&noun)
                 };
                 let hits: Vec<usize> = candidates
                     .iter()
@@ -873,7 +901,14 @@ impl<'a> Resolver<'a> {
                 }
                 used[j] = true;
                 let alias = match &spec.alias {
-                    Some(a) => a.value.clone(),
+                    Some(value) => {
+                        let value = value.clone();
+                        match self.eval_noun(&value, &scope) {
+                            Some(n) if spec.kind.is_unique() => self.singular_of(&n),
+                            Some(n) => self.plural_of(&n),
+                            None => continue,
+                        }
+                    }
                     None => self.default_reverse_alias(c, spec.target.span),
                 };
                 out.push(ir::Reverse {
@@ -908,15 +943,15 @@ impl<'a> Resolver<'a> {
 
     fn default_reverse_alias(&mut self, c: &IncomingFk, span: Span) -> String {
         let base = c
-            .from_word
+            .from_noun
             .clone()
-            .unwrap_or_else(|| singularize(&c.from_table));
+            .unwrap_or_else(|| Compound::literal(c.from_table.clone()));
         let tpl = if c.unique {
             self.config.naming.has_one.clone()
         } else {
             self.config.naming.has_many.clone()
         };
-        let vars = HashMap::from([("table", base)]);
+        let vars = Vars::from([("table", base)]);
         self.render(&tpl, &vars, span)
     }
 
@@ -961,8 +996,10 @@ impl<'a> Resolver<'a> {
                 .map(|(j, idx)| (j, idx.columns.clone(), idx.unique, idx.span))
                 .collect();
             for (j, cols, unique, span) in specs {
-                let vars =
-                    HashMap::from([("table", table_name.clone()), ("columns", cols.join(&sep))]);
+                let vars = Vars::from([
+                    ("table", Compound::literal(table_name.clone())),
+                    ("columns", Compound::literal(cols.join(&sep))),
+                ]);
                 let tpl = if unique { &uq_tpl } else { &idx_tpl };
                 let name = self.render(tpl, &vars, span);
                 schema.tables[i].indexes[j].name = name;
@@ -976,14 +1013,14 @@ struct RelationSpec {
     target: Spanned<String>,
     unique: bool,
     column: String,
-    alias: Option<String>,
+    alias: Option<Spanned<Value>>,
     span: Span,
 }
 
 #[derive(Debug, Clone)]
 struct IncomingFk {
     from_table: String,
-    from_word: Option<String>,
+    from_noun: Option<Compound>,
     columns: Vec<String>,
     unique: bool,
 }
