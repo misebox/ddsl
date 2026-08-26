@@ -48,9 +48,8 @@ mixin base {
 }
 
 mixin publishable {
-  column status       type=text                  comment="公開状態"
-  column published_at type=timestamptz null=true  comment="公開日時"
-
+  column status       type=text                 comment="公開状態"
+  column published_at type=timestamptz null=true comment="公開日時"
   index status
   index published_at
 }
@@ -74,20 +73,18 @@ table user {
   use base
   column email type=text comment="ログインID"
   column name  type=text comment="表示名"
+  index email unique
   has_many post
   has_one profile
-
-  index email unique
 }
 
 table category {
   use base
   use describable
+  except updated_at
   override note       type=text null=false
   override created_at default=eval(now())
-  except updated_at
   column name type=text comment="カテゴリ名"
-
   index name unique
 }
 
@@ -116,7 +113,6 @@ table post {
   belongs_to user     comment="投稿者"
   belongs_to category comment="所属カテゴリ"
   column title type=text comment="表題"
-
   index [status, created_at] unique
 }
 

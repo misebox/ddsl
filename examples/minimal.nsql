@@ -1,5 +1,4 @@
-# 最小の例。nouns に語を登録し、mixin で共通の列をまとめ、
-# belongs_to で関係を書く。これだけで DDL が出る。
+# 最小の構成。
 
 nouns {
   user users "ユーザー"
@@ -7,18 +6,17 @@ nouns {
 }
 
 mixin base {
-  column id type=serial comment="主キー"
-  pk id
+  column id         type=serial      comment="主キー"
   column created_at type=timestamptz default=eval(now()) comment="作成日時"
+  pk id
 }
 
 table user {
   comment "ユーザー"
   use base
   column email type=text comment="ログインID"
-  has_many post
-
   index email unique
+  has_many post
 }
 
 table post {

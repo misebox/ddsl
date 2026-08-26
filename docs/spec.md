@@ -18,25 +18,69 @@ mixin base {
 
 DDL に残したい説明は `comment` で書く。`#` はソースにしか残らない。
 
-### 宣言文（括弧なし）
+### 宣言文
+
+すべて `table` または `mixin` ブロックの**中**に書く。グローバルスコープには書けない。括弧は付けない。
+
+**列を作る。** 書いた順がそのまま DDL の列順になる。
 
 | 文 | 記法 |
 |---|---|
-| テーブルの説明 | `comment "..."` |
-| カラム宣言 | `column 名前 キー=値 ...` |
-| 主キー | `pk 列` / `pk [列, ...]` |
-| index | `index 列 [unique]` / `index [列, ...] [unique]` |
-| mixin合成 | `use mixin名` |
-| 上書き | `override 列 キー=値 ...` |
-| 除外 | `except 名前` / `except [名前, ...]` |
-| index除外 | `except index 列` / `except index [列, ...]` |
+| カラム | `column 名前 キー=値 ...` |
 | 従属 | `belongs_to 名詞 [fk="..."] [alias="..."] [comment="..."]` |
 | 1対1従属 | `unique_belongs_to 名詞 [fk="..."] [alias="..."] [comment="..."]` |
-| 逆参照（多） | `has_many 名詞 [via="..."] [alias="..."]` |
-| 逆参照（1対1） | `has_one 名詞 [via="..."] [alias="..."]` |
-| 局所束縛（blueprint内） | `let 名前 = 式` |
+
+**揃った列について宣言する。**
+
+| 文 | 記法 |
+|---|---|
+| 主キー | `pk 列` / `pk [列, ...]` |
+| index | `index 列 [unique]` / `index [列, ...] [unique]` |
+
+**mixin を取り込み、調整する。**
+
+| 文 | 記法 |
+|---|---|
+| 合成 | `use mixin名` |
+| 除外 | `except 名前` / `except [名前, ...]` |
+| index除外 | `except index 列` / `except index [列, ...]` |
+| 上書き | `override 列 キー=値 ...` |
+
+**その他。**
+
+| 文 | 記法 | 書ける場所 |
+|---|---|---|
+| テーブルの説明 | `comment "..."` | `table` のみ |
+| 逆参照（多） | `has_many 名詞 [via="..."] [alias="..."]` | `table` / `mixin` |
+| 逆参照（1対1） | `has_one 名詞 [via="..."] [alias="..."]` | `table` / `mixin` |
+| 局所束縛 | `let 名前 = 式` | `blueprint` の直下 |
 
 列リストは単一なら角括弧を省略できる。
+
+### 書く順序
+
+列を作る文の並びだけが結果に効く。書いた順がそのまま DDL の列順になる。`use` / `except` / `override` はフェーズ順（`use` 展開 → `except` → `override`）に解決されるので、書いた位置に依らない。
+
+読みやすさのために次の順を推奨する。
+
+```
+table article {
+  comment "記事"              # 1. このテーブルが何か
+  use base                    # 2. 取り込む
+  except updated_at           # 3. 取り込んだものを調整する
+  override id type=bigserial
+
+  belongs_to author           # 4. 列を作る。この順が列順になる
+  column title type=text
+
+  pk id                       # 5. 揃った列について宣言する
+  index title unique
+
+  has_many review             # 6. 逆参照に名前を付ける
+}
+```
+
+### 名前とクォート
 
 宣言位置（`column` や `table` の直後）には新しい名前を裸で書く。値位置（`キー=値` の右辺）の裸の識別子は参照（名詞・型名・キーワード）を表す。値位置に新しい名前を書くときは文字列にする。
 
@@ -103,17 +147,36 @@ column created_at type=timestamptz default=eval(now()) on_update=eval(now())
 
 ## pk
 
+`pk` は1テーブルに1つ。列が揃ってから書く。
+
 ```
-pk id
-pk [user_id, role_id]
+table user {
+  column id type=serial
+  pk id
+}
+```
+
+複合主キーは列を並べる。中間テーブルでよく使う。
+
+```
+table user_role {
+  belongs_to user
+  belongs_to role
+  pk [user_id, role_id]
+}
 ```
 
 ## index
 
+1テーブルにいくつでも書ける。`unique` を付けると一意制約になる。
+
 ```
-index status
-index email unique
-index [status, created_at] unique
+table post {
+  column status type=text
+  column title  type=text
+  index title unique
+  index [status, created_at]
+}
 ```
 
 FKのindexは `foreign_key_index = true` により自動生成する。
@@ -215,9 +278,35 @@ override category_id null=true
 
 ## nouns
 
-名詞の辞書。`singular plural comment` の順で列挙する。`singular()` / `plural()` はこの辞書で解決する。辞書に無い名詞は規則変化にフォールバックし、警告を出す。
+名詞の辞書。`singular plural comment` の順で列挙する。
 
-テーブル名・列名・関連名はすべて名詞から組み立てる。`table` 宣言の無いエントリはエラーにしない。名前の部品としてしか使わない名詞（`item` / `history` など）も登録する。
+```
+nouns {
+  user     users      "ユーザー"
+  category categories "商品カテゴリ"
+  person   people     "担当者"
+  child    children   "子要素"
+}
+```
+
+テーブル名・FK列名・関連名はすべてここの名詞から組み立てる。`singular()` / `plural()` はこの辞書で解決し、無い名詞は規則変化にフォールバックして警告を出す。
+
+このブロックは2つのことを引き受けている。
+
+**不規則変化を仕様の一部にする。** 規則変化で出せる語は多いが、出せない語がある。
+
+| 語 | 規則変化 | 正しくは |
+|---|---|---|
+| `person` | `persons` | `people` |
+| `child` | `childs` | `children` |
+| `analysis` | `analysises` | `analyses` |
+| `datum` | `datums` | `data` |
+
+辞書に書かないと、こうした名前が**警告付きではあるが黙って**通る。書けば、変換規則がコメントやコミットログではなく**定義そのもの**として残る。
+
+**用語集がスキーマ定義の副産物になる。** 第3列の説明は DDL の `COMMENT` になる。「このテーブルは業務上何を指すか」を別のドキュメントに書くと必ず陳腐化するが、ここに書けば**スキーマを書く行為そのものに用語の定義が含まれる**。
+
+`table` 宣言の無いエントリはエラーにしない。名前の部品としてしか使わない名詞（`item` / `history` など）も登録する。
 
 単数形と複数形を持たないもの（`sent` のような修飾語）はここに書かない。文字列として直接書く。
 
@@ -337,7 +426,11 @@ constraints {
 
 ## blueprint
 
-複数テーブルにまたがる構造を定義する。
+**複数のテーブルが互いを参照して初めて成立する構造**に、1つの名前を与える。
+
+「承認フロー」は申請・段階・コメントの3テーブルが揃って初めて意味を持つ。これを個別の `table` として並べて書くと、どのテーブル群が1つの仕組みなのかがソースから読み取れず、別の名詞に同じ仕組みを付けるたびに手で写すことになる。
+
+`mixin` は1テーブルの中に閉じる。`belongs_to` は2テーブルの間を繋ぐ。それより広い範囲をまとめるのが `blueprint` で、この3つを最初から別の構文にしてあるので、名前を見れば何が生成されるのかが判る。
 
 ```
 blueprint approvable target comment="承認フロー" {
@@ -464,9 +557,8 @@ mixin base {
 }
 
 mixin publishable {
-  column status       type=text                  comment="公開状態"
-  column published_at type=timestamptz null=true  comment="公開日時"
-
+  column status       type=text                 comment="公開状態"
+  column published_at type=timestamptz null=true comment="公開日時"
   index status
   index published_at
 }
@@ -490,20 +582,18 @@ table user {
   use base
   column email type=text comment="ログインID"
   column name  type=text comment="表示名"
+  index email unique
   has_many post
   has_one profile
-
-  index email unique
 }
 
 table category {
   use base
   use describable
+  except updated_at
   override note       type=text null=false
   override created_at default=eval(now())
-  except updated_at
   column name type=text comment="カテゴリ名"
-
   index name unique
 }
 
@@ -532,7 +622,6 @@ table post {
   belongs_to user     comment="投稿者"
   belongs_to category comment="所属カテゴリ"
   column title type=text comment="表題"
-
   index [status, created_at] unique
 }
 

@@ -1,17 +1,7 @@
 import { For, Show, batch, createEffect, createSignal, onMount } from "solid-js";
 import { readExample } from "./content";
+import { SAMPLES } from "./sampleList";
 import { failed, wasm } from "./wasm";
-
-type Sample = { readonly file: string; readonly label: string; readonly note: string };
-
-/** examples/ にある実物を読む。ここには説明だけを持つ。 */
-const SAMPLES: readonly Sample[] = [
-  { file: "minimal.nsql", label: "最小", note: "nouns / mixin / belongs_to だけの構成" },
-  { file: "relations.nsql", label: "関連", note: "同一テーブルへの複数参照、自己参照、複合主キー" },
-  { file: "blueprint.nsql", label: "blueprint", note: "1回の適用で3テーブルを作る" },
-  { file: "config.nsql", label: "config", note: "命名規則と制約の既定値を変えると出力がどう変わるか" },
-  { file: "sample.nsql", label: "全構文", note: "仕様に出てくる構文をすべて含む" },
-];
 
 type Diagnostic = {
   severity: "error" | "warning";
@@ -114,25 +104,10 @@ export function Playground() {
           WebAssembly に落とした本体
         </a>
         で、CLI と同じ字句解析・解決・コード生成を使う。
+        例の説明は<a href="./samples.html">サンプル</a>にある。
       </p>
 
       <div class="pg" data-state={failed() ? "failed" : wasm() ? "ready" : "loading"}>
-        <nav class="pg-samples" aria-label="サンプル">
-          <For each={SAMPLES}>
-            {(sample) => (
-              <button
-                type="button"
-                class="pg-sample"
-                classList={{ "is-on": current() === sample.file }}
-                onClick={() => select(sample.file)}
-              >
-                <span class="pg-sample-label">{sample.label}</span>
-                <span class="pg-sample-note">{sample.note}</span>
-              </button>
-            )}
-          </For>
-        </nav>
-
         <div class="pg-bar">
           <div class="pg-tabs" role="tablist">
             <button

@@ -1,7 +1,12 @@
-import { For, type JSX } from "solid-js";
+import { For, Show, type JSX } from "solid-js";
 import { PAGES, href, type Page } from "./pages";
 
-export function Layout(props: { page: Page; children: JSX.Element; aside?: JSX.Element }) {
+export function Layout(props: {
+  page: Page;
+  children: JSX.Element;
+  aside?: JSX.Element;
+  wide?: boolean;
+}) {
   return (
     <>
       <a class="skip" href="#main">
@@ -25,11 +30,13 @@ export function Layout(props: { page: Page; children: JSX.Element; aside?: JSX.E
         </a>
       </header>
 
-      <div class="shell">
+      <div class="shell" classList={{ "is-wide": props.wide }}>
         <main id="main" class="content">
           {props.children}
         </main>
-        <aside class="side">{props.aside}</aside>
+        <Show when={props.aside}>
+          <aside class="side">{props.aside}</aside>
+        </Show>
       </div>
 
       <footer class="foot">

@@ -1,34 +1,29 @@
-# 命名規則と制約の既定値を変えると、生成される名前と DDL が変わる。
-# ここでは全部を既定から外して、どこに効くのかを見えるようにしている。
+# 命名規則と制約の既定値を変えると、生成されるすべての名前が変わる。
+# 人によって idx_ だったり ix_ だったりする揺れが、ここで一度に決まる。
 
 naming {
   # テーブル名を単数形にする。既定は plural。
   table_name = singular
 
-  # FK 列を `user_ref` のように作る。既定は `${singular(table)}_id`。
+  # FK 列を `author_ref` のように作る。既定は `${singular(table)}_id`。
   foreign_key = "${singular(table)}_ref"
 
-  # index 名の組み立て。既定は idx_ / uq_ 始まり。
+  # index 名。既定は idx_ / uq_ 始まり。
   index = "${table}_${columns}_ix"
   unique_index = "${table}_${columns}_uq"
 
-  # 複数列の index 名を繋ぐ文字。既定は "_"。
+  # index 名の中で複数列を繋ぐ文字。既定は "_"。
   column_separator = "__"
 
   # 複合名詞を繋ぐ文字。既定は "_"。
   noun_separator = "_"
-
-  # 関連名。既定と同じだが、ここで変えられる。
-  belongs_to = "${singular(table)}"
-  has_many = "${plural(table)}"
-  has_one = "${singular(table)}"
 }
 
 constraints {
   # null= を省略したときの既定。true にすると省略が nullable になる。
   null_default = true
 
-  # FK の参照動作。既定は cascade。
+  # FK の参照動作。既定はどちらも cascade。
   on_delete_default = restrict
   on_update_default = no_action
 
@@ -48,25 +43,26 @@ mixin base {
 }
 
 table author {
+  comment "著者"
   use base
-  # null_default = true なので、明示しない列は nullable になる。
+  # null_default = true なので、書かない列は nullable になる。
   column name type=text null=false comment="必須にする列は明示する"
   column bio  type=text comment="省略したので nullable"
 }
 
 table article {
+  comment "記事"
   use base
   belongs_to author comment="著者への参照"
   column title type=text null=false comment="表題"
   column body  type=text comment="本文"
-
   index [author_ref, title] unique
 }
 
 table tag {
+  comment "タグ"
   use base
   column name type=text null=false comment="タグ名"
-
   index name unique
 }
 
