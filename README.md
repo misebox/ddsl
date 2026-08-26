@@ -38,9 +38,12 @@ cargo install ddsl-lsp    # language server
 ```
 cargo run -p ddsl -- check examples/sample.ddsl   # 診断のみ
 cargo run -p ddsl -- sql   examples/sample.ddsl   # DDL を出力
-cargo run -p ddsl -- --dialect postgres sql examples/sample.ddsl
 cargo run -p ddsl -- ir    examples/sample.ddsl   # 中間表現（解決済みスキーマ）
 cargo run -p ddsl -- ast   examples/sample.ddsl   # 構文木
+
+ddsl sql schema.ddsl -o schema.sql       # 出力先を指定する
+cat schema.ddsl | ddsl sql -             # 標準入力から読む
+ddsl check schema.ddsl --deny-warnings   # 警告も失敗にする
 ```
 
 ## パイプライン
