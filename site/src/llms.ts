@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
-import { LLMS_INTRO } from "./llmsIntro";
-import { SAMPLES } from "./sampleList";
+import { LLMS_INTRO } from "./llmsIntro.ts";
+import { SAMPLES } from "./sampleList.ts";
 
 const SITE = "https://misebox.github.io/nounsql/";
 
