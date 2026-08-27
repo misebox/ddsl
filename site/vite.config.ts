@@ -1,26 +1,25 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
+import { writeEntries } from "./src/entries.ts";
 import { llmsTxt } from "./src/llms.ts";
 
 // ドキュメントは静的なページの方が向いているので SPA にせず、
 // HTML を1ページ1ファイル出す。ページ間の移動は素の <a> で足りる。
-const pages = ["index", "guide", "spec", "samples", "playground", "tooling"];
+// エントリはページ × 言語の分だけ要るので、雛形から書き出す。
+const root = import.meta.dirname;
+const input = writeEntries(root);
 
 export default defineConfig({
   base: "./",
   plugins: [solid(), llmsTxt()],
   build: {
-    outDir: resolve(import.meta.dirname, "../dist"),
+    outDir: resolve(root, "../dist"),
     emptyOutDir: true,
-    rollupOptions: {
-      input: Object.fromEntries(
-        pages.map((name) => [name, resolve(import.meta.dirname, `${name}.html`)]),
-      ),
-    },
+    rollupOptions: { input },
   },
   server: {
     // docs/ と examples/ はサイトの外にあるが、内容はここから読む。
-    fs: { allow: [resolve(import.meta.dirname, "..")] },
+    fs: { allow: [resolve(root, "..")] },
   },
 });

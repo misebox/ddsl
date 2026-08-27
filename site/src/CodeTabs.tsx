@@ -1,4 +1,5 @@
 import { For, Show, createMemo, createSignal } from "solid-js";
+import { t } from "./i18n";
 import { wasm } from "./wasm";
 
 /**
@@ -41,7 +42,7 @@ export function CodeTabs(props: { source: string; dialect?: string }) {
           aria-selected={pane() === "source"}
           onClick={() => setPane("source")}
         >
-          NounSQL
+          {t().code.source}
         </button>
         <button
           type="button"
@@ -51,14 +52,14 @@ export function CodeTabs(props: { source: string; dialect?: string }) {
           aria-selected={pane() === "output"}
           onClick={() => setPane("output")}
         >
-          Generated DDL
+          {t().code.output}
         </button>
         <Show when={result()}>
           {(r) => (
             <span class="tabs-note">
               {r().errors > 0
-                ? `${r().errors} error${r().errors > 1 ? "s" : ""}`
-                : `${r().tables} tables · ${r().columns} columns`}
+                ? t().count.errors(r().errors)
+                : t().count.size(r().tables, r().columns)}
             </span>
           )}
         </Show>

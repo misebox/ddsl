@@ -1,23 +1,22 @@
 import { For, createSignal } from "solid-js";
 import { CodeTabs } from "./CodeTabs";
 import { readExample } from "./content";
-import { SAMPLES } from "./sampleList";
+import { lang, t } from "./i18n";
+import { samples } from "./sampleList";
 
 /** 左に一覧、右に中身。一覧は畳まない。 */
 export function Samples() {
-  const [current, setCurrent] = createSignal(SAMPLES[0]!);
+  const list = samples(lang());
+  const [current, setCurrent] = createSignal(list[0]!);
 
   return (
     <>
-      <h1>Samples</h1>
-      <p class="page-intro">
-        Every one compiles without warnings. The same files live in <code>examples/</code>, and the{" "}
-        <a href="./playground.html">playground</a> loads them for editing.
-      </p>
+      <h1>{t().samples.heading}</h1>
+      <p class="page-intro">{t().samples.intro()}</p>
 
       <div class="samples">
-        <nav class="samples-list" aria-label="Samples">
-          <For each={SAMPLES}>
+        <nav class="samples-list" aria-label={t().samples.listLabel}>
+          <For each={list}>
             {(sample) => (
               <button
                 type="button"

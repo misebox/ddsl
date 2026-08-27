@@ -51,14 +51,28 @@ bin/preview --no-wasm   # skip rebuilding the WebAssembly; starts faster
 
 `--port` changes the port, which defaults to 4321.
 
-The site reads `docs/*.md` and `examples/*.nsql` straight from the repository
-through `import.meta.glob`, so there is no copy to keep in sync. Markdown goes
-through marked; code blocks are coloured by the compiler's own lexer, reached
-through the WebAssembly build.
+The site reads `docs/<lang>/*.md` and `examples/*.nsql` straight from the
+repository through `import.meta.glob`, so there is no copy to keep in sync.
+Markdown goes through marked; code blocks are coloured by the compiler's own
+lexer, reached through the WebAssembly build.
 
 It is a multi-page Vite build rather than a single-page app: one HTML file per
-page. A router would mean a 404 fallback on GitHub Pages and a site that needs
-JavaScript to read.
+page per language. A router would mean a 404 fallback on GitHub Pages and a site
+that needs JavaScript to read.
+
+## Languages
+
+English is at the root and Japanese under `/ja/`. Which languages a page has is
+declared in `site/src/pages.ts`; a page missing a language links to the one it
+has. The specification is English only — adding `docs/ja/spec.md` and `"ja"` to
+that page's `langs` is all it takes to publish a translation.
+
+Prose lives in three places: `docs/<lang>/*.md` for the long pages,
+`site/src/i18n.tsx` for the interface, and `site/src/overviewCopy.tsx` for the
+front page. `site/src/meta.ts` holds what goes in `<head>`.
+
+The HTML entry files are written by `site/src/entries.ts` when Vite loads its
+config, one per page per language, so they are not in the repository.
 
 ## WebAssembly
 

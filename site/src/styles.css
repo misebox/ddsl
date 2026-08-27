@@ -165,6 +165,31 @@ a:hover { color: var(--derived); }
 .topnav a:hover { color: var(--ink); }
 .topnav a.current { color: var(--ink); border-bottom-color: var(--derived); }
 
+/* 英語版しか無いページに付ける、行き先の言語の印。 */
+.nav-lang {
+  margin-left: 0.3em;
+  padding: 0.05em 0.3em;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font-size: 0.82em;
+  color: var(--muted);
+  vertical-align: 0.05em;
+}
+
+.langs {
+  display: flex;
+  gap: 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+.langs a {
+  color: var(--muted);
+  text-decoration: none;
+}
+.langs a:hover { color: var(--ink); }
+.langs a.current { color: var(--ink); }
+
 .repo {
   font-family: var(--mono);
   font-size: 0.78rem;

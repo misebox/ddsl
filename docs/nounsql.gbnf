@@ -1,5 +1,5 @@
 # NounSQL grammar (GBNF / llama.cpp constrained decoding)
-# 対応する仕様: docs/spec.md
+# 対応する仕様: docs/en/spec.md
 
 root ::= nls? (item (nls item)*)? nls?
 

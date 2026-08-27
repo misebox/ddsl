@@ -4,7 +4,9 @@
  * どちらもサイトの外（`docs/` と `examples/`）にある実物を読む。
  * ここで写しを持つと、仕様と説明がずれる。
  */
-const docs = import.meta.glob("../../docs/*.md", {
+import type { Lang } from "./i18n";
+
+const docs = import.meta.glob("../../docs/*/*.md", {
   query: "?raw",
   import: "default",
   eager: true,
@@ -16,19 +18,19 @@ const examples = import.meta.glob("../../examples/*.nsql", {
   eager: true,
 }) as Record<string, string>;
 
-function byBasename(files: Record<string, string>): Map<string, string> {
-  return new Map(
-    Object.entries(files).map(([path, text]) => [path.split("/").pop() ?? path, text]),
-  );
-}
+/** `../../docs/ja/guide.md` を `ja/guide.md` にする。 */
+const docByPath = new Map(
+  Object.entries(docs).map(([path, text]) => [path.split("/").slice(-2).join("/"), text]),
+);
 
-const docByName = byBasename(docs);
-const exampleByName = byBasename(examples);
+const exampleByName = new Map(
+  Object.entries(examples).map(([path, text]) => [path.split("/").pop() ?? path, text]),
+);
 
-export function readDoc(file: string): string {
-  const text = docByName.get(file);
+export function readDoc(lang: Lang, file: string): string {
+  const text = docByPath.get(`${lang}/${file}`);
   if (text === undefined) {
-    throw new Error(`docs/${file} が無い`);
+    throw new Error(`docs/${lang}/${file} が無い`);
   }
   return text;
 }
