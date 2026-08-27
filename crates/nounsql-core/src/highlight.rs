@@ -22,9 +22,9 @@ const STATEMENT_KEYWORDS: &[&str] = &[
     "unique_belongs_to",
     "has_many",
     "has_one",
-    "let",
     "unique",
     "comment",
+    "name",
 ];
 
 /// 宣言文のうち、直後の識別子が「型・テーブル」を指すもの。
@@ -145,7 +145,6 @@ fn classify(
         }
         match p {
             "column" | "override" => return Some("member"),
-            "let" => return Some("var"),
             "type" => return Some("t"),
             _ => {}
         }

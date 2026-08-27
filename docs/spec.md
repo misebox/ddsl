@@ -56,10 +56,10 @@ in the DDL.
 
 | Statement | Form | Where |
 |---|---|---|
+| Table name | `name noun-expression` | `table` only |
 | Table description | `comment "..."` | `table` only |
 | Reverse, many | `has_many noun [via="..."] [alias="..."]` | `table` / `mixin` |
 | Reverse, one-to-one | `has_one noun [via="..."] [alias="..."]` | `table` / `mixin` |
-| Local binding | `let name = expression` | directly inside `blueprint` |
 
 A list of one column does not need brackets.
 
@@ -74,18 +74,19 @@ Writing them in this order reads best.
 
 ```
 table article {
-  comment "A piece of writing"    # 1. what this table is
-  use base                        # 2. pull in
-  except updated_at               # 3. adjust what was pulled in
+  name noun(blog, article)        # 1. what this table is called, if not the identifier
+  comment "A piece of writing"    # 2. what it is
+  use base                        # 3. pull in
+  except updated_at               # 4. adjust what was pulled in
   override id type=bigserial
 
-  belongs_to author               # 4. create columns, in this order
+  belongs_to author               # 5. create columns, in this order
   column title type=text
 
-  pk id                           # 5. say something about them
+  pk id                           # 6. say something about them
   index title unique
 
-  has_many review                 # 6. name the reverse side
+  has_many review                 # 7. name the reverse side
 }
 ```
 
@@ -159,6 +160,51 @@ column created_at type=timestamptz default=eval(now()) on_update=eval(now())
 
 Primary keys are `pk`, uniqueness is `index ... unique`. Neither is a column
 attribute.
+
+## name
+
+A table's identifier and the name it gets in the database are two different
+things. `table user { ... }` uses the identifier as the noun, which is what most
+tables want. `name` separates them.
+
+```
+table user_role {
+  name noun(user, role)
+  belongs_to user
+  belongs_to role
+  pk [user_id, role_id]
+}
+```
+
+`user_role` never has to be registered in `nouns`: the noun is composed from two
+that are. The identifier is only a handle for referring to this table elsewhere
+in the source.
+
+A `name` can also be a plain string, which is how an existing table that does
+not follow the conventions is described.
+
+```
+table customer {
+  name "tbl_cust_master"
+}
+```
+
+One table's name can be built from another's, which is how a `blueprint` names
+the group it generates.
+
+```
+blueprint approvable target {
+  table t_approval {
+    name noun(target, approval)     # post_approvals
+  }
+  table t_step {
+    name noun(t_approval, step)     # post_approval_steps
+  }
+}
+```
+
+Once a table writes `name`, its identifier stops being a noun, so it must not
+collide with one. Names that refer to each other in a circle are an error.
 
 ## pk
 
@@ -391,7 +437,7 @@ for notes that belong to the source.
 ### Interpolation
 
 Comment strings take `${...}`. What can be referenced is nouns, including a
-blueprint's parameters and `let` bindings.
+blueprint's parameters and the tables it declares.
 
 ```
 nouns {
@@ -400,9 +446,8 @@ nouns {
 }
 
 blueprint audited target {
-  let t_history = noun(target, history)
-
   table t_history {
+    name noun(target, history)
     comment "Past states of a ${target}"
     column id type=serial
     pk id
@@ -480,10 +525,8 @@ of a name readable.
 
 ```
 blueprint approvable target {
-  let t_approval = noun(target, approval)
-  let t_step     = noun(t_approval, step)
-
   table t_approval {
+    name noun(target, approval)
     comment "A request to publish a ${target}"
     use primary_key
     belongs_to target
@@ -491,6 +534,7 @@ blueprint approvable target {
   }
 
   table t_step {
+    name noun(t_approval, step)
     comment "One stage of approving a ${target}"
     use primary_key
     belongs_to t_approval
@@ -506,24 +550,15 @@ apply_blueprint(approvable, post)
 Every argument is a noun, and no type is written. A noun passed in must be
 registered in `nouns`, so that `desc()` can reach its description.
 
-### let
-
-`let name = expression` binds a noun. It cannot be rebound.
-
-```
-let t_approval = noun(target, approval)   # the noun post_approval / post_approvals
-table t_approval { ... }                  # table_name = plural, so post_approvals
-```
-
 ### Resolving names
 
 References are written bare and resolved in this order.
 
 1. a parameter
-2. a `let` binding
+2. a table declared in this blueprint
 3. a noun
 
-A parameter or binding that collides with a noun is an error.
+A parameter that collides with a noun is an error.
 
 ## Validation
 
@@ -533,7 +568,8 @@ A parameter or binding that collides with a noun is an error.
 - no duplicate table or column names
 - a name that collides with a reserved word of the output target (warning)
 - `use` does not form a cycle
-- a blueprint parameter or `let` binding does not collide with a noun
+- a blueprint parameter, or the identifier of a table that writes `name`, does not collide with a noun
+- table names do not refer to each other in a circle
 - a noun fell back to regular inflection (warning); as a blueprint argument, an error
 - a `${...}` in a comment refers to a noun that has a description
 - `has_many` and `has_one` have a foreign key to attach to
@@ -610,9 +646,8 @@ mixin publishable {
 }
 
 blueprint audited target {
-  let t_history = noun(target, history)
-
   table t_history {
+    name noun(target, history)
     comment "Past states of a ${target}"
     use primary_key
     belongs_to target comment="What changed"

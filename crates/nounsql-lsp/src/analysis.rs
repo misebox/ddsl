@@ -21,10 +21,8 @@ pub fn reference_at(doc: &Document, offset: usize) -> Option<(Reference, Span)> 
         }
     }
     for b in &doc.blueprints {
-        for item in &b.items {
-            if let ast::BlueprintItem::Table(t) = item
-                && let Some(hit) = member_reference(&t.members, offset)
-            {
+        for table in &b.tables {
+            if let Some(hit) = member_reference(&table.members, offset) {
                 return Some(hit);
             }
         }
