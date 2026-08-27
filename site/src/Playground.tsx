@@ -119,7 +119,7 @@ export function Playground() {
               aria-selected={pane() === "source"}
               onClick={() => setPane("source")}
             >
-              ソース
+              source
             </button>
             <button
               type="button"
@@ -129,12 +129,21 @@ export function Playground() {
               aria-selected={pane() === "output"}
               onClick={() => setPane("output")}
             >
-              出力
+              output
               <Show when={(result()?.errors ?? 0) > 0}>
                 <span class="pg-badge">{result()?.errors}</span>
               </Show>
             </button>
           </div>
+
+          <label class="pg-field">
+            <span>example</span>
+            <select value={current()} onChange={(e) => select(e.currentTarget.value)}>
+              <For each={SAMPLES}>
+                {(sample) => <option value={sample.file}>{sample.label}</option>}
+              </For>
+            </select>
+          </label>
 
           <label class="pg-field">
             <span>target</span>

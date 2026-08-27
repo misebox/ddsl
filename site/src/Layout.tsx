@@ -10,7 +10,7 @@ export function Layout(props: {
   return (
     <>
       <a class="skip" href="#main">
-        本文へ
+        Skip to content
       </a>
       <header class="topbar">
         <div class="topbar-inner">
@@ -42,7 +42,7 @@ export function Layout(props: {
       </div>
 
       <footer class="foot">
-        <p>Data Definition Schema Language is a DSL for Database Schema Design.</p>
+        <p>NounSQL is a DSL for Database Schema Design.</p>
       </footer>
     </>
   );
