@@ -24,7 +24,7 @@ export const SAMPLES: readonly Sample[] = [
   {
     file: "blueprint.nsql",
     label: "Blueprints",
-    summary: "Three tables that only mean something together, held under one name.",
+    summary: "Generating tables from a noun, so the same structure can be attached to another.",
   },
   {
     file: "naming.nsql",

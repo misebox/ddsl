@@ -554,17 +554,9 @@ constraints {
 
 ## blueprint
 
-It gives one name to **a structure that only exists once several tables point at
-each other**.
-
-An approval flow is a request, its stages and their notes: three tables that mean
-nothing apart. Written as three separate `table` blocks, nothing in the source
-says they are one mechanism, and attaching the same mechanism to another noun
-means copying them by hand.
-
-`mixin` stays inside one table. `belongs_to` joins two. `blueprint` covers a
-wider group, and keeping the three as separate constructs is what makes the reach
-of a name readable.
+A `mixin` is reused across tables and gives you the inside of one. A `blueprint`
+is reused across nouns and gives you the tables themselves. It is a parameterised
+group of `table` blocks, applied to a noun.
 
 ```
 blueprint approvable target {
@@ -587,6 +579,10 @@ blueprint approvable target {
 
 apply_blueprint(approvable, post)
 ```
+
+Every table inside is generated on each application, with names and comments
+derived from the arguments. Applying the same blueprint to another noun produces
+another set.
 
 ### Arguments
 
