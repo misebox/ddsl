@@ -603,7 +603,6 @@ A parameter that collides with a noun is an error.
 
 - `type=` names a type the output target has
 - `override` names a column the mixin defined
-- foreign key column types match the referenced primary key
 - no duplicate table or column names
 - a name that collides with a reserved word of the output target (warning)
 - `use` does not form a cycle
@@ -617,13 +616,10 @@ A parameter that collides with a noun is an error.
 - a relation name does not collide with a column or another relation on the same table
 - a table has a primary key (warning); removing one with `except` shows up here
 - `except` did not remove a foreign key column and silently drop the relation (warning)
-
-### Indexes
-
-- the column types suit the index kind (`gin` and `gist` are limited; everything else is btree)
-- no two indexes cover the same columns
-- no index duplicates the uniqueness constraint `unique_belongs_to` creates
-- a foreign key column has an index when `foreign_key_index = false` turned the automatic one off (warning)
+- no two indexes on a table cover the same columns, counting the one
+  `unique_belongs_to` creates (warning)
+- a foreign key column has an index when `foreign_key_index = false` turned the
+  automatic one off (warning)
 
 ## Every construct
 
