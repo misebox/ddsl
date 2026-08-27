@@ -21,6 +21,7 @@ pub fn resolve(doc: &Document, dialect: Dialect) -> (ir::Schema, Vec<Diagnostic>
         config,
         dict,
         diags,
+        top_level_names: HashMap::new(),
         mixins: HashMap::new(),
         blueprints: HashMap::new(),
     };
@@ -34,6 +35,8 @@ struct Pending<'a> {
     name: String,
     noun: Option<Compound>,
     scope: Scope,
+    /// `name` に文字列を書いたテーブルの、識別子から最終名への対応。
+    names: HashMap<String, String>,
     origin: ir::Origin,
 }
 
@@ -46,6 +49,7 @@ struct Resolver<'a> {
     config: Config,
     dict: Dict,
     diags: Vec<Diagnostic>,
+    top_level_names: HashMap<String, String>,
     mixins: HashMap<String, &'a ast::Mixin>,
     blueprints: HashMap<String, &'a ast::Blueprint>,
 }
@@ -99,7 +103,8 @@ impl<'a> Resolver<'a> {
         let mut pendings = Vec::new();
         let tables = self.doc.tables.as_slice();
         let mut scope = Scope::new();
-        self.resolve_table_nouns(tables, &mut scope);
+        let literals = self.resolve_table_nouns(tables, &mut scope);
+        self.top_level_names = literals.clone();
 
         for t in tables {
             let Some(noun) = scope.get(&t.name.value).cloned() else {
@@ -108,9 +113,13 @@ impl<'a> Resolver<'a> {
             self.check_nouns_registered(&noun, t.name.span);
             pendings.push(Pending {
                 ast: t,
-                name: self.table_name_of(&noun),
+                name: literals
+                    .get(&t.name.value)
+                    .cloned()
+                    .unwrap_or_else(|| self.table_name_of(&noun)),
                 noun: Some(noun),
                 scope: scope.clone(),
+                names: literals.clone(),
                 origin: ir::Origin::Own,
             });
         }
@@ -187,17 +196,23 @@ impl<'a> Resolver<'a> {
                 scope.insert(param.value.clone(), noun);
             }
 
-            self.resolve_table_nouns(&bp.tables, &mut scope);
+            let literals = self.resolve_table_nouns(&bp.tables, &mut scope);
 
             for table in &bp.tables {
                 let Some(noun) = scope.get(&table.name.value).cloned() else {
                     continue;
                 };
+                let mut names = self.top_level_names.clone();
+                names.extend(literals.clone());
                 out.push(Pending {
                     ast: table,
-                    name: self.table_name_of(&noun),
+                    name: literals
+                        .get(&table.name.value)
+                        .cloned()
+                        .unwrap_or_else(|| self.table_name_of(&noun)),
                     noun: Some(noun),
                     scope: scope.clone(),
+                    names,
                     origin: ir::Origin::Blueprint {
                         name: bp.name.value.clone(),
                         def_span: table.name.span,
@@ -209,29 +224,50 @@ impl<'a> Resolver<'a> {
         out
     }
 
-    /// テーブルの名詞を決める。
+    /// テーブルの名詞と、明示されたテーブル名を決める。
     ///
-    /// `name` を書けばその名詞、書かなければブロックの識別子が名詞になる。
+    /// `name` に名詞式を書くと名詞そのものが決まり、テーブル名は `table_name`
+    /// から導出される。文字列を書いた場合は**テーブル名だけ**が決まり、
+    /// 名詞は識別子のまま残る。FK 列名は名詞から作るので、既存のデータベースに
+    /// 名前を合わせても `customer_id` のままにできる。
+    ///
     /// `name` は他のテーブルの識別子を参照できるので、解ける順に繰り返す。
-    fn resolve_table_nouns(&mut self, tables: &[ast::Table], scope: &mut Scope) {
+    fn resolve_table_nouns(
+        &mut self,
+        tables: &[ast::Table],
+        scope: &mut Scope,
+    ) -> HashMap<String, String> {
         let idents: HashSet<&str> = tables.iter().map(|t| t.name.value.as_str()).collect();
 
+        let mut literal_names = HashMap::new();
         let mut pending: Vec<(&ast::Name, Option<&Spanned<Value>>)> = Vec::new();
         for table in tables {
-            let expr = name_expression(table);
-            // `name` を書いた時点で識別子は局所的な手掛かりになる。
-            // 名詞と同じ綴りだと、どちらを指すのか決まらない。
-            if expr.is_some() && self.dict.get(&table.name.value).is_some() {
-                self.diags.push(Diagnostic::error(
-                    table.name.span,
-                    format!(
-                        "`{}` は名詞と衝突している。`name` を書くテーブルには別の名前を付ける",
-                        table.name.value
-                    ),
-                ));
-                continue;
+            match name_expression(table) {
+                // 文字列はテーブル名だけを決める。名詞は識別子のまま。
+                Some(Spanned {
+                    value: Value::Str(text),
+                    ..
+                }) => {
+                    literal_names.insert(table.name.value.clone(), text.clone());
+                    pending.push((&table.name, None));
+                }
+                // 名詞式を書いた時点で識別子は局所的な手掛かりになる。
+                // 名詞と同じ綴りだと、どちらを指すのか決まらない。
+                Some(expr) => {
+                    if self.dict.get(&table.name.value).is_some() {
+                        self.diags.push(Diagnostic::error(
+                            table.name.span,
+                            format!(
+                                "`{}` は名詞と衝突している。`name` に名詞式を書くテーブルには別の名前を付ける",
+                                table.name.value
+                            ),
+                        ));
+                        continue;
+                    }
+                    pending.push((&table.name, Some(expr)));
+                }
+                None => pending.push((&table.name, None)),
             }
-            pending.push((&table.name, expr));
         }
 
         loop {
@@ -262,6 +298,7 @@ impl<'a> Resolver<'a> {
                 format!("`{}` の `name` が循環している", ident.value),
             ));
         }
+        literal_names
     }
 
     /// 名詞として評価する。まだ決まっていないテーブルを参照していたら None。
@@ -819,9 +856,10 @@ impl<'a> Resolver<'a> {
     ) {
         for (i, specs) in relations.iter().enumerate() {
             let scope = pendings[i].scope.clone();
+            let names = pendings[i].names.clone();
             let mut resolved = Vec::new();
             for spec in specs {
-                if let Some(r) = self.resolve_relation(spec, &scope, schema) {
+                if let Some(r) = self.resolve_relation(spec, &scope, &names, schema) {
                     resolved.push(r);
                 }
             }
@@ -850,10 +888,14 @@ impl<'a> Resolver<'a> {
         &mut self,
         spec: &RelationSpec,
         scope: &Scope,
+        names: &HashMap<String, String>,
         schema: &ir::Schema,
     ) -> Option<ResolvedRelation> {
         let target = self.resolve_noun(&spec.target, scope);
-        let ref_table_name = self.table_name_of(&target);
+        let ref_table_name = match names.get(&spec.target.value) {
+            Some(name) => name.clone(),
+            None => self.table_name_of(&target),
+        };
         let Some(ref_table) = schema.table(&ref_table_name) else {
             self.diags.push(Diagnostic::error(
                 spec.target.span,
@@ -941,7 +983,8 @@ impl<'a> Resolver<'a> {
                     alias: None,
                     span: call.span,
                 };
-                let Some(r) = self.resolve_relation(&spec, &HashMap::new(), schema) else {
+                let names = self.top_level_names.clone();
+                let Some(r) = self.resolve_relation(&spec, &Scope::new(), &names, schema) else {
                     ok = false;
                     break;
                 };
@@ -1041,11 +1084,15 @@ impl<'a> Resolver<'a> {
 
             let specs: Vec<ast::Relation> = reverses.get(i).cloned().unwrap_or_default();
             let scope = pendings.get(i).map(|p| p.scope.clone()).unwrap_or_default();
+            let names = pendings.get(i).map(|p| p.names.clone()).unwrap_or_default();
 
             for spec in &specs {
-                let from_table = {
-                    let noun = self.resolve_noun(&spec.target, &scope);
-                    self.table_name_of(&noun)
+                let from_table = match names.get(&spec.target.value) {
+                    Some(name) => name.clone(),
+                    None => {
+                        let noun = self.resolve_noun(&spec.target, &scope);
+                        self.table_name_of(&noun)
+                    }
                 };
                 let hits: Vec<usize> = candidates
                     .iter()

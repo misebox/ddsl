@@ -1,0 +1,46 @@
+# Pointing at a database whose names you do not control.
+#
+# `name` with a string sets the table name and nothing else: the noun stays the
+# identifier, so foreign keys are still built from it. Where the existing column
+# names disagree, `fk=` says so.
+
+naming {
+  # Index names are the one thing that has no per-index override, so the
+  # existing convention goes here.
+  index = "IX_${table}_${columns}"
+  unique_index = "UX_${table}_${columns}"
+}
+
+nouns {
+  customer customers "Someone who buys"
+  order    orders    "A purchase a customer placed"
+  line     lines     "One line of an order"
+}
+
+table customer {
+  name "M_CUSTOMER"
+  comment "Someone who buys"
+  column CUST_CD   type=char comment="Fixed-width customer code"
+  column CUST_NAME type=text comment="Registered name"
+  pk CUST_CD
+  index CUST_NAME
+}
+
+table order {
+  name "T_ORDER"
+  comment "A purchase a customer placed"
+  column ORDER_NO type=char comment="Order number"
+  belongs_to customer fk="CUST_CD" comment="Who placed it"
+  column ORDER_DT type=timestamptz comment="When it was placed"
+  pk ORDER_NO
+  index [CUST_CD, ORDER_DT]
+}
+
+table line {
+  name "T_ORDER_LINE"
+  comment "One line of an order"
+  column LINE_NO type=integer comment="Position within the order"
+  belongs_to order fk="ORDER_NO" comment="Which order"
+  column QTY type=integer comment="How many"
+  pk [ORDER_NO, LINE_NO]
+}

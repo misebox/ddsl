@@ -37,6 +37,11 @@ export const SAMPLES: readonly Sample[] = [
     summary: "Ten tables of an online shop. On top of conventions, only the differences remain.",
   },
   {
+    file: "legacy.nsql",
+    label: "An existing database",
+    summary: "Describing tables and columns whose names were decided somewhere else.",
+  },
+  {
     file: "sample.nsql",
     label: "Everything",
     summary: "Every construct that appears in the specification.",

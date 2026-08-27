@@ -74,7 +74,7 @@ Writing them in this order reads best.
 
 ```
 table article {
-  name noun(blog, article)        # 1. what this table is called, if not the identifier
+  name noun(user, article)        # 1. what it is called, if not the identifier
   comment "A piece of writing"    # 2. what it is
   use base                        # 3. pull in
   except updated_at               # 4. adjust what was pulled in
@@ -163,9 +163,13 @@ attribute.
 
 ## name
 
-A table's identifier and the name it gets in the database are two different
+A table's identifier and the name it carries in the database are two different
 things. `table user { ... }` uses the identifier as the noun, which is what most
-tables want. `name` separates them.
+tables want. `name` separates them, and does one of two things depending on what
+it is given.
+
+**A noun expression sets the noun.** The table name is derived from it, and so is
+anything else built out of that noun.
 
 ```
 table user_role {
@@ -177,20 +181,11 @@ table user_role {
 ```
 
 `user_role` never has to be registered in `nouns`: the noun is composed from two
-that are. The identifier is only a handle for referring to this table elsewhere
-in the source.
-
-A `name` can also be a plain string, which is how an existing table that does
-not follow the conventions is described.
-
-```
-table customer {
-  name "tbl_cust_master"
-}
-```
+that are. The identifier is only a handle for referring to this table elsewhere,
+so it must not collide with a registered noun.
 
 One table's name can be built from another's, which is how a `blueprint` names
-the group it generates.
+the group it generates. Names that refer to each other in a circle are an error.
 
 ```
 blueprint approvable target {
@@ -203,8 +198,56 @@ blueprint approvable target {
 }
 ```
 
-Once a table writes `name`, its identifier stops being a noun, so it must not
-collide with one. Names that refer to each other in a circle are an error.
+**A string sets the table name and nothing else.** The noun stays the
+identifier, so foreign keys pointing at the table are still built from it.
+
+```
+table customer {
+  name "M_CUSTOMER"     # the table is M_CUSTOMER
+  ...                   # a reference to it still gives customer_id
+}
+```
+
+## Opting out of the generated names
+
+Every generated name can be replaced, which is what makes it possible to
+describe a database whose names were decided somewhere else.
+
+| Name | How to set it |
+|---|---|
+| Table | `name "..."` |
+| Column | written out in `column` |
+| Foreign key column | `fk="..."` on the reference |
+| Relation name | `alias="..."` on either side |
+| Index | `naming.index` and `naming.unique_index` |
+
+The one that has no per-item override is the index name: it comes from a
+template, so an existing convention goes in `naming` and applies to the whole
+schema.
+
+```
+naming {
+  index = "IX_${table}_${columns}"
+  unique_index = "UX_${table}_${columns}"
+}
+
+table customer {
+  name "M_CUSTOMER"
+  column CUST_CD   type=char
+  column CUST_NAME type=text
+  pk CUST_CD
+}
+
+table order {
+  name "T_ORDER"
+  column ORDER_NO type=char
+  belongs_to customer fk="CUST_CD"
+  pk ORDER_NO
+}
+```
+
+Identifiers that are not plain lowercase are quoted in the output, so a schema
+in upper case survives unchanged.
 
 ## pk
 
