@@ -64,6 +64,10 @@
           "name": "keyword.other.nsql"
         },
         {
+          "match": "^\\s*\\b(name)\\b(?=\\s)",
+          "name": "keyword.other.nounsql"
+        },
+        {
           "match": "\\b(pk|index|except|unique)\\b",
           "name": "keyword.other.nsql"
         }

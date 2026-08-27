@@ -11,7 +11,6 @@ nouns {
   role      roles      "A permission that can be granted"
   post      posts      "Something a user wrote"
   favorite  favorites  "A user liking a post"
-  user_role user_roles "A permission granted to a user"
 }
 
 mixin base {
@@ -78,6 +77,8 @@ table role {
 # A join table that carries its own columns is an ordinary table
 # with two belongs_to.
 table user_role {
+  # user_role is not in nouns; the name is composed from two that are.
+  name noun(user, role)
   comment "A permission granted to a user"
   belongs_to user comment="Who was granted it"
   belongs_to role comment="What they were granted"

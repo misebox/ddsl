@@ -89,6 +89,8 @@ pub struct Relation {
 pub enum Member {
     /// `comment "..."`。テーブルの説明。
     Comment(Spanned<String>),
+    /// `name 名詞`。テーブルの名詞。省略するとブロックの識別子を使う。
+    Name(Spanned<Value>),
     Column(Column),
     Pk(Vec<Name>),
     Index(Index),
@@ -114,22 +116,10 @@ pub struct Mixin {
 }
 
 #[derive(Debug, Clone)]
-pub struct Let {
-    pub name: Name,
-    pub value: Spanned<Value>,
-}
-
-#[derive(Debug, Clone)]
-pub enum BlueprintItem {
-    Let(Let),
-    Table(Table),
-}
-
-#[derive(Debug, Clone)]
 pub struct Blueprint {
     pub name: Name,
     pub params: Vec<Name>,
-    pub items: Vec<BlueprintItem>,
+    pub tables: Vec<Table>,
     pub span: Span,
 }
 

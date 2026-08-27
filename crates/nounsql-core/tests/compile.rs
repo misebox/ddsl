@@ -271,8 +271,7 @@ fn blueprint_argument_must_be_a_registered_noun() {
     let src = concat!(
         "nouns {\n  post posts \"投稿\"\n}\n",
         "mixin base {\n  column id type=serial\n  pk id\n}\n",
-        "blueprint b target {\n  let t = noun(target, post)\n",
-        "  table t {\n    use base\n  }\n}\n",
+        "blueprint b target {\n  table t {\n    name noun(target, post)\n    use base\n  }\n}\n",
         "apply_blueprint(b, unknown)\n"
     );
     let (_, diags) = compile(src);
@@ -296,6 +295,63 @@ fn rejects_comment_on_has_many() {
         errors(&diags)
             .iter()
             .any(|m| m.contains("`comment=` は書けない")),
+        "{:?}",
+        errors(&diags)
+    );
+}
+
+#[test]
+fn name_composes_a_noun_that_is_not_registered() {
+    let src = concat!(
+        "nouns {\n  user users \"u\"\n  role roles \"r\"\n}\n",
+        "mixin base {\n  column id type=serial\n  pk id\n}\n",
+        "table user { use base }\ntable role { use base }\n",
+        "table user_role {\n  name noun(user, role)\n",
+        "  belongs_to user\n  belongs_to role\n  pk [user_id, role_id]\n}\n"
+    );
+    let (schema, diags) = compile(src);
+    assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
+    assert!(schema.table("user_roles").is_some());
+}
+
+#[test]
+fn name_can_be_a_literal() {
+    let src = concat!(
+        "nouns {\n  customer customers \"c\"\n}\n",
+        "table customer_legacy {\n  name \"tbl_cust_master\"\n",
+        "  column id type=serial\n  pk id\n}\n"
+    );
+    let (schema, diags) = compile(src);
+    assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
+    assert!(schema.table("tbl_cust_master").is_some());
+}
+
+#[test]
+fn detects_a_cycle_between_table_names() {
+    let src = concat!(
+        "nouns {\n  a as \"a\"\n  b bs \"b\"\n}\n",
+        "mixin m {\n  column id type=serial\n  pk id\n}\n",
+        "table x {\n  name noun(y, a)\n  use m\n}\n",
+        "table y {\n  name noun(x, b)\n  use m\n}\n"
+    );
+    let (_, diags) = compile(src);
+    assert!(
+        errors(&diags).iter().any(|m| m.contains("循環")),
+        "{:?}",
+        errors(&diags)
+    );
+}
+
+#[test]
+fn rejects_name_on_an_identifier_that_is_a_noun() {
+    let src = concat!(
+        "nouns {\n  user users \"u\"\n  role roles \"r\"\n}\n",
+        "table user {\n  name noun(user, role)\n",
+        "  column id type=serial\n  pk id\n}\n"
+    );
+    let (_, diags) = compile(src);
+    assert!(
+        errors(&diags).iter().any(|m| m.contains("名詞と衝突")),
         "{:?}",
         errors(&diags)
     );
@@ -340,7 +396,7 @@ fn rejects_override_of_missing_column() {
 fn rejects_blueprint_param_shadowing_noun() {
     let src = concat!(
         "nouns {\n  user users \"u\"\n  post posts \"p\"\n}\n",
-        "blueprint b user {\n  let t = noun(user, post)\n  table t {\n    column x type=text\n  }\n}\n",
+        "blueprint b user {\n  table t {\n    name noun(user, post)\n    column x type=text\n  }\n}\n",
         "apply_blueprint(b, post)\n"
     );
     let (_, diags) = compile(src);

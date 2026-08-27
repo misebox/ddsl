@@ -33,6 +33,7 @@ table-block ::= "table" sp1 ident sp "{" nls (member nls)* "}"
 
 member ::= sp (
       comment-stmt
+    | name-stmt
     | column-stmt
     | pk-stmt
     | index-stmt
@@ -47,6 +48,7 @@ member ::= sp (
     )
 
 comment-stmt ::= "comment" sp1 string
+name-stmt ::= "name" sp1 (fn-call | string | ident)
 column-stmt ::= "column" sp1 ident (sp1 attr)*
 pk-stmt ::= "pk" sp1 col-list
 index-stmt ::= "index" sp1 col-list (sp1 "unique")?
@@ -71,9 +73,7 @@ ident-list ::= "[" sp ident (sp "," sp ident)* sp "]"
 
 # ---------- blueprint ----------
 
-blueprint-block ::= "blueprint" sp1 ident (sp1 ident)* sp "{" nls (bp-member nls)* "}"
-bp-member ::= sp (let-stmt | table-block)
-let-stmt ::= "let" sp1 ident sp "=" sp expr
+blueprint-block ::= "blueprint" sp1 ident (sp1 ident)* sp "{" nls (sp table-block nls)* "}"
 
 # ---------- マクロ ----------
 
@@ -85,8 +85,6 @@ apply-blueprint ::= "apply_blueprint" sp "(" sp ident (sp "," sp ident)+ sp ")"
 # ---------- 値 ----------
 
 value ::= eval-call | fn-call | string | list | ident
-expr ::= fn-call | string | ident
-
 fn-call ::= fn-name sp "(" sp fn-arg (sp "," sp fn-arg)* sp ")"
 fn-arg ::= fn-call | string | ident
 fn-name ::= "noun" | "singular" | "plural" | "desc"

@@ -55,9 +55,8 @@ mixin publishable {
 }
 
 blueprint audited target {
-  let t_history = noun(target, history)
-
   table t_history {
+    name noun(target, history)
     comment "Past states of a ${target}"
     use primary_key
     belongs_to target comment="What changed"

@@ -97,19 +97,20 @@ impl<'a> Resolver<'a> {
 
     fn collect_pending(&mut self) -> Vec<Pending<'a>> {
         let mut pendings = Vec::new();
-        for t in &self.doc.tables {
-            let word = t.name.value.clone();
-            if self.dict.get(&word).is_none() {
-                self.diags.push(Diagnostic::warning(
-                    t.name.span,
-                    format!("`{word}` が `nouns` に無い。規則変化で解決する"),
-                ));
-            }
+        let tables = self.doc.tables.as_slice();
+        let mut scope = Scope::new();
+        self.resolve_table_nouns(tables, &mut scope);
+
+        for t in tables {
+            let Some(noun) = scope.get(&t.name.value).cloned() else {
+                continue;
+            };
+            self.check_nouns_registered(&noun, t.name.span);
             pendings.push(Pending {
                 ast: t,
-                name: self.table_name_of(&Compound::noun(word.clone())),
-                noun: Some(Compound::noun(word)),
-                scope: HashMap::new(),
+                name: self.table_name_of(&noun),
+                noun: Some(noun),
+                scope: scope.clone(),
                 origin: ir::Origin::Own,
             });
         }
@@ -186,38 +187,111 @@ impl<'a> Resolver<'a> {
                 scope.insert(param.value.clone(), noun);
             }
 
-            for item in &bp.items {
-                match item {
-                    ast::BlueprintItem::Let(l) => {
-                        self.check_shadowing(&l.name);
-                        if let Some(noun) = self.eval_noun(&l.value, &scope) {
-                            scope.insert(l.name.value.clone(), noun);
-                        }
-                    }
-                    ast::BlueprintItem::Table(t) => {
-                        let Some(noun) = scope.get(&t.name.value).cloned() else {
-                            self.diags.push(Diagnostic::error(
-                                t.name.span,
-                                format!("`{}` は blueprint 内で束縛されていない", t.name.value),
-                            ));
-                            continue;
-                        };
-                        out.push(Pending {
-                            ast: t,
-                            name: self.table_name_of(&noun),
-                            noun: Some(noun),
-                            scope: scope.clone(),
-                            origin: ir::Origin::Blueprint {
-                                name: bp.name.value.clone(),
-                                def_span: t.name.span,
-                                apply_span: call.span,
-                            },
-                        });
-                    }
-                }
+            self.resolve_table_nouns(&bp.tables, &mut scope);
+
+            for table in &bp.tables {
+                let Some(noun) = scope.get(&table.name.value).cloned() else {
+                    continue;
+                };
+                out.push(Pending {
+                    ast: table,
+                    name: self.table_name_of(&noun),
+                    noun: Some(noun),
+                    scope: scope.clone(),
+                    origin: ir::Origin::Blueprint {
+                        name: bp.name.value.clone(),
+                        def_span: table.name.span,
+                        apply_span: call.span,
+                    },
+                });
             }
         }
         out
+    }
+
+    /// テーブルの名詞を決める。
+    ///
+    /// `name` を書けばその名詞、書かなければブロックの識別子が名詞になる。
+    /// `name` は他のテーブルの識別子を参照できるので、解ける順に繰り返す。
+    fn resolve_table_nouns(&mut self, tables: &[ast::Table], scope: &mut Scope) {
+        let idents: HashSet<&str> = tables.iter().map(|t| t.name.value.as_str()).collect();
+
+        let mut pending: Vec<(&ast::Name, Option<&Spanned<Value>>)> = Vec::new();
+        for table in tables {
+            let expr = name_expression(table);
+            // `name` を書いた時点で識別子は局所的な手掛かりになる。
+            // 名詞と同じ綴りだと、どちらを指すのか決まらない。
+            if expr.is_some() && self.dict.get(&table.name.value).is_some() {
+                self.diags.push(Diagnostic::error(
+                    table.name.span,
+                    format!(
+                        "`{}` は名詞と衝突している。`name` を書くテーブルには別の名前を付ける",
+                        table.name.value
+                    ),
+                ));
+                continue;
+            }
+            pending.push((&table.name, expr));
+        }
+
+        loop {
+            let before = pending.len();
+            let mut deferred = Vec::new();
+            for (ident, expr) in pending {
+                let noun = match expr {
+                    None => Some(Compound::noun(ident.value.clone())),
+                    Some(value) => self.try_eval_noun(value, scope, &idents),
+                };
+                match noun {
+                    Some(noun) => {
+                        scope.insert(ident.value.clone(), noun);
+                    }
+                    None => deferred.push((ident, expr)),
+                }
+            }
+            pending = deferred;
+            // 1周して1つも解けなければ、残りは循環している。
+            if pending.is_empty() || pending.len() == before {
+                break;
+            }
+        }
+
+        for (ident, _) in pending {
+            self.diags.push(Diagnostic::error(
+                ident.span,
+                format!("`{}` の `name` が循環している", ident.value),
+            ));
+        }
+    }
+
+    /// 名詞として評価する。まだ決まっていないテーブルを参照していたら None。
+    fn try_eval_noun(
+        &mut self,
+        value: &Spanned<Value>,
+        scope: &Scope,
+        idents: &HashSet<&str>,
+    ) -> Option<Compound> {
+        match &value.value {
+            Value::Ident(name) => match scope.get(name) {
+                Some(noun) => Some(noun.clone()),
+                // これから決まるテーブルなら次の周回に回す。
+                None if idents.contains(name.as_str()) => None,
+                None => Some(Compound::noun(name.clone())),
+            },
+            Value::Str(text) => Some(Compound::literal(text.clone())),
+            Value::Call { name, args } if name.value == "noun" => {
+                let mut parts = Vec::new();
+                for arg in args {
+                    parts.extend(self.try_eval_noun(arg, scope, idents)?.parts);
+                }
+                if parts.is_empty() {
+                    self.diags
+                        .push(Diagnostic::error(value.span, "`noun()` に引数が無い"));
+                }
+                Some(Compound { parts })
+            }
+            _ => self.eval_noun(value, scope),
+        }
     }
 
     fn check_shadowing(&mut self, name: &Spanned<String>) {
@@ -602,6 +676,8 @@ impl<'a> Resolver<'a> {
                 ),
                 ast::Member::Override(ov) => overrides.push(ov),
                 ast::Member::Comment(text) => *comment = Some(text.clone()),
+                // 名詞は collect_pending で解決済み。
+                ast::Member::Name(_) => {}
                 ast::Member::Except(names) => excepts.extend(names.iter().cloned()),
                 ast::Member::ExceptIndex(cols) => {
                     except_indexes.push(cols.iter().map(|c| c.value.clone()).collect())
@@ -1185,3 +1261,11 @@ fn to_val(v: &Value, span: Span, errors: &mut Vec<Diagnostic>) -> Option<ir::Val
 /// 未使用の警告を抑えるためのダミー。将来 validate で使う。
 #[allow(dead_code)]
 fn _unused(_: &HashSet<String>) {}
+
+/// `name` 文があればその値。
+fn name_expression(table: &ast::Table) -> Option<&Spanned<Value>> {
+    table.members.iter().find_map(|m| match &m.value {
+        ast::Member::Name(value) => Some(value),
+        _ => None,
+    })
+}

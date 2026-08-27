@@ -25,7 +25,6 @@ const STATEMENT_KEYWORDS: &[&str] = &[
     "unique_belongs_to",
     "has_many",
     "has_one",
-    "let",
     "unique",
 ];
 

@@ -20,12 +20,10 @@ mixin base {
 }
 
 blueprint approvable target {
-  # `let` binds a noun. The next `let` can build on it.
-  let t_approval = noun(target, approval)   # post_approvals
-  let t_step     = noun(t_approval, step)   # post_approval_steps
-  let t_note     = noun(t_step, note)       # post_approval_step_notes
-
+  # The identifier is a local handle; `name` decides the noun. A table can be
+  # named after another one, so each name builds on the one before it.
   table t_approval {
+    name noun(target, approval)               # post_approvals
     comment "A request to publish a ${target}"
     use base
     belongs_to target comment="What is being approved"
@@ -35,6 +33,7 @@ blueprint approvable target {
   }
 
   table t_step {
+    name noun(t_approval, step)               # post_approval_steps
     comment "One stage of approving a ${target}"
     use base
     belongs_to t_approval comment="Which request"
@@ -45,6 +44,7 @@ blueprint approvable target {
   }
 
   table t_note {
+    name noun(t_step, note)                   # post_approval_step_notes
     comment "A remark left while approving a ${target}"
     use base
     belongs_to t_step comment="Which stage"

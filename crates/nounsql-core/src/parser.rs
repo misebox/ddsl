@@ -401,6 +401,17 @@ impl Parser {
                 }
                 Ok(Member::Comment(text))
             }
+            "name" => {
+                self.bump();
+                let value = self.value()?;
+                if kind != BlockKind::Table {
+                    self.diags.push(Diagnostic::error(
+                        value.span,
+                        "`name` は `table` にしか書けない",
+                    ));
+                }
+                Ok(Member::Name(value))
+            }
             "column" => {
                 self.bump();
                 let name = self.expect_ident("カラム名")?;
@@ -605,25 +616,15 @@ impl Parser {
             self.recover_block();
             return Err(Bail);
         }
-        let mut items = Vec::new();
+        let mut tables = Vec::new();
         loop {
             self.skip_newlines();
             if self.at(&Tok::RBrace) || self.at(&Tok::Eof) {
                 break;
             }
-            if self.at_keyword("let") {
-                match self.let_stmt() {
-                    Ok(l) => {
-                        items.push(BlueprintItem::Let(l));
-                        if self.end_of_statement().is_err() {
-                            self.recover_line();
-                        }
-                    }
-                    Err(Bail) => self.recover_line(),
-                }
-            } else if self.at_keyword("table") {
+            if self.at_keyword("table") {
                 match self.table_block() {
-                    Ok(t) => items.push(BlueprintItem::Table(t)),
+                    Ok(t) => tables.push(t),
                     Err(Bail) => self.recover_line(),
                 }
             } else {
@@ -631,7 +632,7 @@ impl Parser {
                 let found = self.peek().describe();
                 self.diags.push(Diagnostic::error(
                     span,
-                    format!("blueprint 内に書けるのは `let` と `table` のみ。{found} が来た"),
+                    format!("blueprint 内に書けるのは `table` のみ。{found} が来た"),
                 ));
                 self.recover_line();
             }
@@ -640,17 +641,9 @@ impl Parser {
         Ok(Blueprint {
             name,
             params,
-            items,
+            tables,
             span: start.join(end),
         })
-    }
-
-    fn let_stmt(&mut self) -> PResult<Let> {
-        self.expect_ident("`let`")?;
-        let name = self.expect_ident("束縛名")?;
-        self.expect(Tok::Eq)?;
-        let value = self.value()?;
-        Ok(Let { name, value })
     }
 
     // ---------- マクロ ----------
