@@ -1,8 +1,6 @@
-# A mixin stays inside one table. A blueprint covers a group of them.
-#
-# An approval flow is three tables that only mean something together.
-# Holding them under one name shows which tables form one mechanism,
-# and lets the same mechanism be attached to another noun.
+# A mixin is reused across tables and gives you the inside of one.
+# A blueprint is reused across nouns and gives you the tables themselves:
+# a parameterised group of table blocks, applied to a noun.
 
 nouns {
   user     users     "A person who signs in"

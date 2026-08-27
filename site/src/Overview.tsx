@@ -45,16 +45,17 @@ export function Overview() {
         <code>userId</code>, is settled by a definition instead of by review comments.
       </p>
 
-      <h3 id="scope-is-visible-in-the-syntax">Scope is visible in the syntax</h3>
+      <h3 id="each-construct-produces-one-thing">Each construct produces one thing</h3>
       <p>
-        Three constructs, split by how far their effect reaches. You can tell what a name generates
-        without opening it.
+        What a name generates is decided by which construct it is, so you can tell without
+        opening it.
       </p>
       <table>
         <thead>
           <tr>
             <th>Construct</th>
-            <th>Reaches</th>
+            <th>Produces</th>
+            <th>Reused across</th>
           </tr>
         </thead>
         <tbody>
@@ -62,42 +63,42 @@ export function Overview() {
             <td>
               <code>mixin</code>
             </td>
-            <td>inside one table</td>
+            <td>columns and indexes inside a table</td>
+            <td>tables</td>
           </tr>
           <tr>
             <td>
               <code>belongs_to</code>
             </td>
-            <td>from one table to another</td>
+            <td>a foreign key column</td>
+            <td>—</td>
           </tr>
           <tr>
             <td>
               <code>associate</code>
             </td>
-            <td>a table placed between two</td>
+            <td>a table between two others</td>
+            <td>—</td>
           </tr>
           <tr>
             <td>
               <code>blueprint</code>
             </td>
-            <td>a group of three or more</td>
+            <td>whole tables</td>
+            <td>nouns</td>
           </tr>
         </tbody>
       </table>
 
-      <h3 id="the-glossary-is-a-by-product">The glossary is a by-product</h3>
+      <h3 id="nouns">What nouns declares</h3>
+      <p>Each entry gives a singular, a plural, and a description.</p>
       <p>
-        <code>nouns</code> looks like a plural table. It does two jobs.
+        The plural is written, not guessed. <code>person</code> → <code>people</code>,{" "}
+        <code>child</code> → <code>children</code>: no rule produces those.
       </p>
       <p>
-        It makes irregular forms part of the definition. <code>person</code> → <code>people</code>,{" "}
-        <code>child</code> → <code>children</code>: no rule produces those. Written down, the
-        conversion lives in the source instead of in a comment or a commit message.
-      </p>
-      <p>
-        And it collects the glossary. The third column says what a table means to the business, in
-        the same file as the schema, and ends up in the DDL as a <code>COMMENT</code>. Kept anywhere
-        else, that description goes stale.
+        The description says what the noun means to the business, and reaches the DDL as a{" "}
+        <code>COMMENT</code> on every table and column named after it.
       </p>
 
       <h2 id="next">Next</h2>
