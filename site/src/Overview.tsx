@@ -2,7 +2,8 @@ import { For, Show } from "solid-js";
 import { CodeTabs } from "./CodeTabs";
 import { readExample } from "./content";
 import { lang, t } from "./i18n";
-import { CONSTRUCTS, OVERVIEW } from "./overviewCopy";
+import { CONSTRUCTS, OVERVIEW, type Links } from "./overviewCopy";
+import { DEFAULT_LANG } from "./lang";
 import { href, hasLang, langFor, pageById } from "./pages";
 
 export function Overview() {
@@ -11,6 +12,12 @@ export function Overview() {
   const to = (id: Parameters<typeof href>[0]) => {
     const page = pageById(id);
     return href(id, here, page ? langFor(page, here) : here);
+  };
+  const links: Links = {
+    spec: to("spec"),
+    // 文法は言語ごとの場所にも書き出している。llms.txt はルートに1つだけ。
+    gbnf: "./nounsql.gbnf",
+    llms: here === DEFAULT_LANG ? "./llms.txt" : "../llms.txt",
   };
 
   return (
@@ -32,16 +39,19 @@ export function Overview() {
 
       <CodeTabs source={readExample("minimal.nsql")} />
 
-      <h2 id="what-it-removes">{copy.removes.heading}</h2>
-      <p>{copy.removes.body()}</p>
+      <h2 id="where-the-repetition-goes">{copy.repetition.heading}</h2>
+      <p>{copy.repetition.body()}</p>
 
-      <h3 id="conventions-live-in-one-place">{copy.conventions.heading}</h3>
-      <p>{copy.conventions.body()}</p>
+      <h3 id="mixin">{copy.mixin.heading}</h3>
+      <p>{copy.mixin.body()}</p>
 
-      <h3 id="names-stop-drifting">{copy.names.heading}</h3>
-      <p>{copy.names.body()}</p>
+      <h3 id="naming">{copy.naming.heading}</h3>
+      <p>{copy.naming.body()}</p>
 
-      <h3 id="each-construct-produces-one-thing">{copy.constructs.heading}</h3>
+      <h3 id="nouns">{copy.nouns.heading}</h3>
+      {copy.nouns.body()}
+
+      <h2 id="each-construct-produces-one-thing">{copy.constructs.heading}</h2>
       <p>{copy.constructs.body()}</p>
       <table>
         <thead>
@@ -63,8 +73,11 @@ export function Overview() {
         </tbody>
       </table>
 
-      <h3 id="nouns">{copy.nouns.heading}</h3>
-      {copy.nouns.body()}
+      <h2 id="the-output-is-just-sql">{copy.output.heading}</h2>
+      <p>{copy.output.body()}</p>
+
+      <h2 id="writing-it-with-a-model">{copy.generated.heading}</h2>
+      <p>{copy.generated.body(links)}</p>
 
       <h2 id="next">{copy.next.heading}</h2>
       <ul>
