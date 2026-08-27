@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
+import { llmsTxt } from "./src/llms";
 
 // ドキュメントは静的なページの方が向いているので SPA にせず、
 // HTML を1ページ1ファイル出す。ページ間の移動は素の <a> で足りる。
@@ -8,7 +9,7 @@ const pages = ["index", "guide", "spec", "samples", "playground", "tooling"];
 
 export default defineConfig({
   base: "./",
-  plugins: [solid()],
+  plugins: [solid(), llmsTxt()],
   build: {
     outDir: resolve(import.meta.dirname, "../dist"),
     emptyOutDir: true,
