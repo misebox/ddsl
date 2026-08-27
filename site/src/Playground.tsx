@@ -54,7 +54,14 @@ export function Playground() {
     }
   });
 
-  const sourceHtml = () => wasm()?.highlightSource(source()) ?? escapeHtml(source());
+  const sourceHtml = () => {
+    const text = source();
+    const html = wasm()?.highlightSource(text) ?? escapeHtml(text);
+    // A textarea draws an empty line after a trailing newline and the <pre>
+    // behind it does not, which leaves the two one line out of step once the
+    // editor is scrolled. Give the pre that line back.
+    return text.endsWith("\n") ? `${html} ` : html;
+  };
   const sqlHtml = () => {
     const sql = result()?.sql ?? "";
     return sql ? (wasm()?.highlightSql(sql) ?? escapeHtml(sql)) : "";
