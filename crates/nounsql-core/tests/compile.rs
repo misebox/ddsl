@@ -315,15 +315,17 @@ fn name_composes_a_noun_that_is_not_registered() {
 }
 
 #[test]
-fn name_can_be_a_literal() {
+fn a_literal_name_sets_only_the_table_name() {
     let src = concat!(
         "nouns {\n  customer customers \"c\"\n}\n",
-        "table customer_legacy {\n  name \"tbl_cust_master\"\n",
+        "table customer {\n  name \"tbl_cust_master\"\n",
         "  column id type=serial\n  pk id\n}\n"
     );
     let (schema, diags) = compile(src);
     assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
-    assert!(schema.table("tbl_cust_master").is_some());
+    let table = schema.table("tbl_cust_master").expect("tbl_cust_master");
+    // 名詞は識別子のまま。FK 列名はそこから作られる。
+    assert_eq!(table.singular.as_deref(), Some("customer"));
 }
 
 #[test]
