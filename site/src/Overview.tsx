@@ -1,120 +1,87 @@
+import { For, Show } from "solid-js";
 import { CodeTabs } from "./CodeTabs";
 import { readExample } from "./content";
+import { lang, t } from "./i18n";
+import { CONSTRUCTS, OVERVIEW } from "./overviewCopy";
+import { href, hasLang, langFor, pageById } from "./pages";
 
 export function Overview() {
+  const here = lang();
+  const copy = OVERVIEW[here];
+  const to = (id: Parameters<typeof href>[0]) => {
+    const page = pageById(id);
+    return href(id, here, page ? langFor(page, here) : here);
+  };
+
   return (
     <>
       <section class="hero">
-        <h1>Write the conventions once.</h1>
+        <h1>{copy.heading}</h1>
 
-        <p class="hero-lede">
-          Mixins, naming rules and a dictionary of nouns settle the repetitive parts of a schema.
-          What stays in a table definition is what makes that table different.
-        </p>
+        <p class="hero-lede">{copy.lede}</p>
 
         <div class="hero-actions">
-          <a class="button" href="./playground.html">
-            Try it in the browser
+          <a class="button" href={to("playground")}>
+            {copy.tryIt}
           </a>
-          <a class="button is-quiet" href="./guide.html">
-            Install
+          <a class="button is-quiet" href={to("guide")}>
+            {copy.install}
           </a>
         </div>
       </section>
 
       <CodeTabs source={readExample("minimal.nsql")} />
 
-      <h2 id="what-it-removes">What it removes</h2>
+      <h2 id="what-it-removes">{copy.removes.heading}</h2>
+      <p>{copy.removes.body()}</p>
 
-      <p>
-        Writing DDL by hand spreads the same column definitions, the same constraints and the same
-        naming habits across every table. NounSQL folds that in four places.
-      </p>
+      <h3 id="conventions-live-in-one-place">{copy.conventions.heading}</h3>
+      <p>{copy.conventions.body()}</p>
 
-      <h3 id="conventions-live-in-one-place">Conventions live in one place</h3>
-      <p>
-        Primary keys, timestamps, anything every table carries — put it in a <code>mixin</code>. What
-        stays in a table definition is what makes that table different. Changing a convention means
-        editing one block.
-      </p>
+      <h3 id="names-stop-drifting">{copy.names.heading}</h3>
+      <p>{copy.names.body()}</p>
 
-      <h3 id="names-stop-drifting">Names stop drifting</h3>
-      <p>
-        <code>naming</code> holds the rules for table names, foreign key columns and index names. The
-        difference between <code>idx_</code> and <code>ix_</code>, between <code>user_id</code> and{" "}
-        <code>userId</code>, is settled by a definition instead of by review comments.
-      </p>
-
-      <h3 id="each-construct-produces-one-thing">Each construct produces one thing</h3>
-      <p>
-        What a name generates is decided by which construct it is, so you can tell without
-        opening it.
-      </p>
+      <h3 id="each-construct-produces-one-thing">{copy.constructs.heading}</h3>
+      <p>{copy.constructs.body()}</p>
       <table>
         <thead>
           <tr>
-            <th>Construct</th>
-            <th>Produces</th>
-            <th>Reused across</th>
+            <For each={copy.constructs.columns}>{(head) => <th>{head}</th>}</For>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>
-              <code>mixin</code>
-            </td>
-            <td>columns and indexes inside a table</td>
-            <td>tables</td>
-          </tr>
-          <tr>
-            <td>
-              <code>belongs_to</code>
-            </td>
-            <td>a foreign key column</td>
-            <td>—</td>
-          </tr>
-          <tr>
-            <td>
-              <code>associate</code>
-            </td>
-            <td>a table between two others</td>
-            <td>—</td>
-          </tr>
-          <tr>
-            <td>
-              <code>blueprint</code>
-            </td>
-            <td>whole tables</td>
-            <td>nouns</td>
-          </tr>
+          <For each={CONSTRUCTS}>
+            {(name) => (
+              <tr>
+                <td>
+                  <code>{name}</code>
+                </td>
+                <For each={copy.constructs.rows[name]}>{(cell) => <td>{cell}</td>}</For>
+              </tr>
+            )}
+          </For>
         </tbody>
       </table>
 
-      <h3 id="nouns">What nouns declares</h3>
-      <p>Each entry gives a singular, a plural, and a description.</p>
-      <p>
-        The plural is written, not guessed. <code>person</code> → <code>people</code>,{" "}
-        <code>child</code> → <code>children</code>: no rule produces those.
-      </p>
-      <p>
-        The description says what the noun means to the business, and reaches the DDL as a{" "}
-        <code>COMMENT</code> on every table and column named after it.
-      </p>
+      <h3 id="nouns">{copy.nouns.heading}</h3>
+      {copy.nouns.body()}
 
-      <h2 id="next">Next</h2>
+      <h2 id="next">{copy.next.heading}</h2>
       <ul>
-        <li>
-          <a href="./guide.html">Guide</a> — install and run the compiler
-        </li>
-        <li>
-          <a href="./samples.html">Samples</a> — working schemas and the DDL they produce
-        </li>
-        <li>
-          <a href="./playground.html">Playground</a> — edit and compile in the browser
-        </li>
-        <li>
-          <a href="./spec.html">Specification</a> — syntax and resolution rules
-        </li>
+        <For each={copy.next.items}>
+          {(item) => {
+            const page = pageById(item.id);
+            return (
+              <li>
+                <a href={to(item.id)}>{item.label}</a> — {item.note}
+                <Show when={page && !hasLang(page, here)}>
+                  {" "}
+                  <span class="nav-lang">{t().englishOnly}</span>
+                </Show>
+              </li>
+            );
+          }}
+        </For>
       </ul>
     </>
   );

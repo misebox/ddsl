@@ -1,5 +1,6 @@
 import { For, Show, type JSX } from "solid-js";
-import { PAGES, href, type Page } from "./pages";
+import { LANGS, LANG_LABEL, lang, t } from "./i18n";
+import { PAGES, hasLang, href, langFor, type Page } from "./pages";
 
 export function Layout(props: {
   page: Page;
@@ -7,21 +8,48 @@ export function Layout(props: {
   aside?: JSX.Element;
   wide?: boolean;
 }) {
+  const here = lang();
+
   return (
     <>
       <a class="skip" href="#main">
-        Skip to content
+        {t().skip}
       </a>
       <header class="topbar">
         <div class="topbar-inner">
-          <a class="brand" href="./index.html">
+          <a class="brand" href={href("index", here, here)}>
             <span class="brand-mark">NounSQL</span>
           </a>
           <nav class="topnav">
             <For each={PAGES}>
-              {(page) => (
-                <a href={href(page)} class={page.id === props.page.id ? "current" : undefined}>
-                  {page.nav}
+              {(page) => {
+                // 訳の無いページは、読める言語の版へ送る。
+                const to = langFor(page, here);
+                return (
+                  <a
+                    href={href(page.id, here, to)}
+                    class={page.id === props.page.id ? "current" : undefined}
+                  >
+                    {t().nav[page.id]}
+                    <Show when={!hasLang(page, here)}>
+                      <span class="nav-lang" title={t().englishOnly}>
+                        {to}
+                      </span>
+                    </Show>
+                  </a>
+                );
+              }}
+            </For>
+          </nav>
+          <nav class="langs" aria-label={LANG_LABEL[here]}>
+            <For each={LANGS}>
+              {(to) => (
+                <a
+                  href={href(langFor(props.page, to) === to ? props.page.id : "index", here, to)}
+                  class={to === here ? "current" : undefined}
+                  lang={to}
+                >
+                  {LANG_LABEL[to]}
                 </a>
               )}
             </For>
@@ -42,7 +70,7 @@ export function Layout(props: {
       </div>
 
       <footer class="foot">
-        <p>NounSQL is a DSL for Database Schema Design.</p>
+        <p>{t().tagline}</p>
       </footer>
     </>
   );

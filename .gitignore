@@ -7,3 +7,6 @@ crates/nounsql-wasm/pkg/
 
 tmp/
 crates/nounsql-wasm/pkg-npm/
+# site/ の HTML エントリは vite.config.ts が雛形から書き出す
+site/*.html
+site/ja/

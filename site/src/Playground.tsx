@@ -1,6 +1,7 @@
 import { For, Show, batch, createEffect, createSignal, onMount } from "solid-js";
 import { readExample } from "./content";
-import { SAMPLES } from "./sampleList";
+import { lang, t } from "./i18n";
+import { samples } from "./sampleList";
 import { failed, wasm } from "./wasm";
 
 type Diagnostic = {
@@ -20,8 +21,9 @@ type Result = {
 };
 
 export function Playground() {
+  const list = samples(lang());
   const [source, setSource] = createSignal("");
-  const [current, setCurrent] = createSignal(SAMPLES[0]!.file);
+  const [current, setCurrent] = createSignal(list[0]!.file);
   const [dialect, setDialect] = createSignal("postgres");
   const [pane, setPane] = createSignal<"source" | "output">("source");
   const [result, setResult] = createSignal<Result | undefined>();
@@ -31,7 +33,7 @@ export function Playground() {
   let editor!: HTMLTextAreaElement;
   let highlighted!: HTMLPreElement;
 
-  onMount(() => select(SAMPLES[0]!.file));
+  onMount(() => select(list[0]!.file));
 
   function select(file: string) {
     batch(() => {
@@ -68,14 +70,14 @@ export function Playground() {
   };
 
   function status(): { text: string; kind: string } {
-    if (failed()) return { text: "compiler failed to load", kind: "is-error" };
+    if (failed()) return { text: t().playground.loadFailed, kind: "is-error" };
     if (error()) return { text: error(), kind: "is-error" };
     const r = result();
-    if (!r) return { text: "loading", kind: "" };
-    if (r.errors > 0) return { text: `${r.errors} error${r.errors > 1 ? "s" : ""}`, kind: "is-error" };
-    const size = `${r.tables} tables · ${r.columns} columns`;
+    if (!r) return { text: t().playground.loading, kind: "" };
+    if (r.errors > 0) return { text: t().count.errors(r.errors), kind: "is-error" };
+    const size = t().count.size(r.tables, r.columns);
     if (r.warnings > 0)
-      return { text: `${size} · ${r.warnings} warning${r.warnings > 1 ? "s" : ""}`, kind: "is-warning" };
+      return { text: `${size} · ${t().count.warnings(r.warnings)}`, kind: "is-warning" };
     return { text: size, kind: "is-ok" };
   }
 
@@ -94,7 +96,7 @@ export function Playground() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      setError("could not write to the clipboard");
+      setError(t().playground.clipboardFailed);
     }
   }
 
@@ -105,15 +107,8 @@ export function Playground() {
 
   return (
     <>
-      <h1>Playground</h1>
-      <p class="page-intro">
-        Compiles in the browser. Nothing you type is sent anywhere. It runs the{" "}
-        <a href="https://github.com/misebox/nounsql/tree/main/crates/nounsql-wasm">
-          compiler itself, built to WebAssembly
-        </a>
-        — the same lexer, resolver and code generator the CLI uses. The examples are described on
-        the <a href="./samples.html">samples</a> page.
-      </p>
+      <h1>{t().playground.heading}</h1>
+      <p class="page-intro">{t().playground.intro()}</p>
 
       <div class="pg" data-state={failed() ? "failed" : wasm() ? "ready" : "loading"}>
         <div class="pg-bar">
@@ -126,7 +121,7 @@ export function Playground() {
               aria-selected={pane() === "source"}
               onClick={() => setPane("source")}
             >
-              source
+              {t().playground.source}
             </button>
             <button
               type="button"
@@ -136,7 +131,7 @@ export function Playground() {
               aria-selected={pane() === "output"}
               onClick={() => setPane("output")}
             >
-              output
+              {t().playground.output}
               <Show when={(result()?.errors ?? 0) > 0}>
                 <span class="pg-badge">{result()?.errors}</span>
               </Show>
@@ -144,16 +139,16 @@ export function Playground() {
           </div>
 
           <label class="pg-field">
-            <span>example</span>
+            <span>{t().playground.example}</span>
             <select value={current()} onChange={(e) => select(e.currentTarget.value)}>
-              <For each={SAMPLES}>
+              <For each={list}>
                 {(sample) => <option value={sample.file}>{sample.label}</option>}
               </For>
             </select>
           </label>
 
           <label class="pg-field">
-            <span>target</span>
+            <span>{t().playground.target}</span>
             <select value={dialect()} onChange={(e) => setDialect(e.currentTarget.value)}>
               <For each={wasm()?.dialects() ?? ["postgres"]}>
                 {(name) => <option value={name}>{name}</option>}
@@ -163,7 +158,7 @@ export function Playground() {
 
           <Show when={pane() === "output"}>
             <button type="button" class="pg-copy" onClick={copySql}>
-              {copied() ? "Copied" : "Copy DDL"}
+              {copied() ? t().playground.copied : t().playground.copy}
             </button>
           </Show>
 
@@ -180,7 +175,7 @@ export function Playground() {
               spellcheck={false}
               autocapitalize="off"
               autocorrect="off"
-              aria-label="NounSQL source"
+              aria-label={t().playground.editorLabel}
               value={source()}
               onInput={(e) => setSource(e.currentTarget.value)}
               onScroll={syncScroll}
@@ -196,7 +191,7 @@ export function Playground() {
 
         <Show when={(result()?.diagnostics.length ?? 0) > 0}>
           <section class="pg-diags">
-            <header class="pg-head">Diagnostics</header>
+            <header class="pg-head">{t().playground.diagnostics}</header>
             <ul>
               <For each={result()!.diagnostics}>
                 {(d) => (
