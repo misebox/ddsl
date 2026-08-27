@@ -474,3 +474,71 @@ fn serialized_ir_keys_are_stable() {
     // span のようなソース依存の情報は出さない。
     assert!(!json.to_string().contains("span"));
 }
+
+fn warnings(diags: &[nounsql_core::Diagnostic]) -> Vec<&str> {
+    diags
+        .iter()
+        .filter(|d| d.severity == Severity::Warning)
+        .map(|d| d.message.as_str())
+        .collect()
+}
+
+#[test]
+fn warns_on_two_indexes_over_the_same_columns() {
+    let (_, diags) = compile(
+        "nouns {\n  user users \"A person\"\n}\n\
+         table user {\n  column id type=serial\n  column email type=text\n\
+         \x20 pk id\n  index email\n  index email\n}\n",
+    );
+    assert!(
+        warnings(&diags)
+            .iter()
+            .any(|m| m.contains("同じ列組み合わせの index")),
+        "{:?}",
+        diags
+    );
+}
+
+#[test]
+fn unique_belongs_to_index_counts_as_a_duplicate() {
+    let (_, diags) = compile(
+        "nouns {\n  user users \"A person\"\n  profile profiles \"Details\"\n}\n\
+         table user {\n  column id type=serial\n  pk id\n}\n\
+         table profile {\n  column id type=serial\n  unique_belongs_to user\n\
+         \x20 pk id\n  index user_id\n}\n",
+    );
+    assert!(
+        warnings(&diags)
+            .iter()
+            .any(|m| m.contains("同じ列組み合わせの index")),
+        "{:?}",
+        diags
+    );
+}
+
+#[test]
+fn warns_when_foreign_key_index_is_off_and_no_index_covers_it() {
+    let (_, diags) = compile(
+        "constraints {\n  foreign_key_index = false\n}\n\
+         nouns {\n  user users \"A person\"\n  post posts \"An article\"\n}\n\
+         table user {\n  column id type=serial\n  pk id\n}\n\
+         table post {\n  column id type=serial\n  belongs_to user\n  pk id\n}\n",
+    );
+    assert!(
+        warnings(&diags).iter().any(|m| m.contains("index が無い")),
+        "{:?}",
+        diags
+    );
+}
+
+#[test]
+fn an_index_over_the_foreign_key_satisfies_that_warning() {
+    let (_, diags) = compile(
+        "constraints {\n  foreign_key_index = false\n}\n\
+         nouns {\n  user users \"A person\"\n  post posts \"An article\"\n}\n\
+         table user {\n  column id type=serial\n  pk id\n}\n\
+         table post {\n  column id type=serial\n  belongs_to user\n  pk id\n\
+         \x20 index user_id, id\n}\n",
+    );
+    assert_eq!(warnings(&diags), Vec::<&str>::new());
+}

@@ -73,6 +73,7 @@ impl<'a> Resolver<'a> {
         self.expand_associates(&mut schema);
         self.attach_reverses(&pendings, &reverses, &mut schema);
         self.name_indexes(&mut schema);
+        self.check_indexes(&schema);
         schema
     }
 
@@ -1214,6 +1215,48 @@ impl<'a> Resolver<'a> {
                     )
                     .with_label(prev, "先の関連"),
                 );
+            }
+        }
+    }
+
+    /// index の重複と、外すと決めたFK列の index を確かめる。
+    fn check_indexes(&mut self, schema: &ir::Schema) {
+        for table in &schema.tables {
+            let mut seen: HashMap<&[String], Span> = HashMap::new();
+            for index in &table.indexes {
+                if let Some(first) = seen.insert(index.columns.as_slice(), index.span) {
+                    self.diags.push(
+                        Diagnostic::warning(
+                            index.span,
+                            format!(
+                                "`{}` に同じ列組み合わせの index が2つある: [{}]",
+                                table.name,
+                                index.columns.join(", ")
+                            ),
+                        )
+                        .with_label(first, "先の index"),
+                    );
+                }
+            }
+
+            // 自動生成を止めたなら、必要な索引は自分で張ることになる。
+            if self.config.constraints.foreign_key_index {
+                continue;
+            }
+            for fk in &table.foreign_keys {
+                let covered = table
+                    .indexes
+                    .iter()
+                    .any(|index| index.columns.starts_with(&fk.columns));
+                if !covered {
+                    self.diags.push(Diagnostic::warning(
+                        fk.span,
+                        format!(
+                            "FK列 [{}] に index が無い。`foreign_key_index = false` なので自動では作られない",
+                            fk.columns.join(", ")
+                        ),
+                    ));
+                }
             }
         }
     }
