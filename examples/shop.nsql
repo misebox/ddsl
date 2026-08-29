@@ -3,16 +3,16 @@
 # carries only what makes that table different.
 
 nouns {
-  customer   customers   "Someone who buys"
-  address    addresses   "Somewhere an order can be delivered"
-  category   categories  "A grouping for products"
-  product    products    "Something for sale"
-  variant    variants    "One buyable form of a product"
-  order      orders      "A purchase a customer placed"
-  order_item order_items "One line of an order"
-  payment    payments    "Money taken for an order"
-  shipment   shipments   "A parcel sent for an order"
-  review     reviews     "What a customer thought of a product"
+  customer    "Someone who buys"
+  address     "Somewhere a purchase can be delivered"
+  category    "A grouping for products"
+  product     "Something for sale"
+  variant     "One buyable form of a product"
+  purchase       "A purchase a customer placed"
+  purchase_item  "One line of a purchase"
+  payment     "Money taken for a purchase"
+  shipment    "A parcel sent for a purchase"
+  review      "What a customer thought of a product"
 }
 
 mixin base {
@@ -37,7 +37,7 @@ table customer {
 }
 
 table address {
-  comment "Somewhere an order can be delivered"
+  comment "Somewhere a purchase can be delivered"
   use base
   belongs_to customer comment="Whose address this is"
   column postal_code type=text comment="Used to work out shipping"
@@ -75,40 +75,40 @@ table variant {
   index sku unique
 }
 
-table order {
+table purchase {
   comment "A purchase a customer placed"
   use base
   belongs_to customer comment="Who placed it"
   belongs_to address  comment="Where it goes"
-  column status     type=text        comment="Where the order stands"
-  column ordered_at type=timestamptz default=eval(now()) comment="When it was placed"
-  index [customer_id, ordered_at]
+  column status     type=text        comment="Where the purchase stands"
+  column placed_at type=timestamptz default=eval(now()) comment="When it was placed"
+  index [customer_id, placed_at]
   index status
 }
 
-table order_item {
-  comment "One line of an order"
+table purchase_item {
+  comment "One line of a purchase"
   use base
   use money
-  belongs_to order   comment="Which order"
+  belongs_to purchase   comment="Which purchase"
   belongs_to variant comment="What was bought"
   column quantity type=integer comment="How many"
-  index [order_id, variant_id] unique
+  index [purchase_id, variant_id] unique
 }
 
 table payment {
-  comment "Money taken for an order"
+  comment "Money taken for a purchase"
   use base
   use money
-  unique_belongs_to order comment="Which order was paid for"
+  unique_belongs_to purchase comment="Which purchase was paid for"
   column method  type=text        comment="How it was paid"
   column paid_at type=timestamptz null=true comment="When it cleared"
 }
 
 table shipment {
-  comment "A parcel sent for an order"
+  comment "A parcel sent for a purchase"
   use base
-  belongs_to order comment="Which order it fulfils"
+  belongs_to purchase comment="Which purchase it fulfils"
   column carrier         type=text           comment="Who is carrying it"
   column tracking_number type=text null=true comment="What the carrier calls it"
   column shipped_at      type=timestamptz null=true comment="When it left"

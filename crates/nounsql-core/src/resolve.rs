@@ -74,6 +74,7 @@ impl<'a> Resolver<'a> {
         self.attach_reverses(&pendings, &reverses, &mut schema);
         self.name_indexes(&mut schema);
         self.check_indexes(&schema);
+        self.check_identifier_lengths(&schema);
         schema
     }
 
@@ -441,11 +442,12 @@ impl<'a> Resolver<'a> {
                     match func.as_str() {
                         "plural" => out.push_str(&noun.plural(&self.dict, &sep)),
                         "singular" => out.push_str(&noun.singular(&self.dict, &sep)),
+                        "short" => out.push_str(&noun.short(&self.dict, &sep)),
                         _ => match self.noun_description(&noun) {
                             Some(desc) => out.push_str(&desc),
                             None => self.diags.push(Diagnostic::error(
                                 text.span,
-                                format!("`{arg}` に説明が無い。`nouns` の第3列に書く"),
+                                format!("`{arg}` に説明が無い。`nouns` の行末に書く"),
                             )),
                         },
                     }
@@ -459,6 +461,45 @@ impl<'a> Resolver<'a> {
     fn noun_description(&self, noun: &Compound) -> Option<String> {
         let last = noun.nouns().last()?;
         self.dict.get(last).and_then(|e| e.comment.clone())
+    }
+
+    /// 出力する識別子が方言の上限に収まるか確かめる。
+    ///
+    /// 超えた分は DB が黙って切り詰めるので、切り詰めた結果が衝突するまで
+    /// 誰も気付かない。制約名は表名と列名から作られるぶん先に溢れる。
+    fn check_identifier_lengths(&mut self, schema: &ir::Schema) {
+        let limit = self.dialect.max_identifier;
+        let too_long = |what: &str, name: &str, span: Span, diags: &mut Vec<Diagnostic>| {
+            if name.len() <= limit {
+                return;
+            }
+            diags.push(Diagnostic::warning(
+                span,
+                format!(
+                    "{what} `{name}` は {} バイトで、{} の上限 {limit} を超える。\
+                     DB が切り詰めるので `short` か `naming` で詰める",
+                    name.len(),
+                    self.dialect.name,
+                ),
+            ));
+        };
+        for table in &schema.tables {
+            too_long("テーブル名", &table.name, table.span, &mut self.diags);
+            for col in table.columns.values() {
+                too_long("列名", &col.name, col.span, &mut self.diags);
+            }
+            for idx in &table.indexes {
+                too_long("索引名", &idx.name, idx.span, &mut self.diags);
+            }
+            if !table.pk.is_empty() {
+                let pkey = format!("{}_pkey", table.name);
+                too_long("主キー制約名", &pkey, table.span, &mut self.diags);
+            }
+            for fk in &table.foreign_keys {
+                let name = format!("{}_{}_fkey", table.name, fk.columns.join("_"));
+                too_long("外部キー制約名", &name, fk.span, &mut self.diags);
+            }
+        }
     }
 
     /// 名詞の各要素が辞書にあるか確かめる。
@@ -487,15 +528,19 @@ impl<'a> Resolver<'a> {
                     out.push_str(t);
                     continue;
                 }
-                Seg::Var(v) => (v, vars.get(v.as_str()).map(|c| c.as_written(&sep))),
+                // 裸の変数はテーブル名の綴りで出す。識別子は出力に出さない。
+                Seg::Var(v) => (
+                    v,
+                    vars.get(v.as_str())
+                        .cloned()
+                        .map(|c| self.table_name_of(&c)),
+                ),
                 Seg::Call { func, arg } => (
                     arg,
-                    vars.get(arg.as_str()).map(|c| {
-                        if func == "plural" {
-                            c.plural(&self.dict, &sep)
-                        } else {
-                            c.singular(&self.dict, &sep)
-                        }
+                    vars.get(arg.as_str()).map(|c| match func.as_str() {
+                        "plural" => c.plural(&self.dict, &sep),
+                        "short" => c.short(&self.dict, &sep),
+                        _ => c.singular(&self.dict, &sep),
                     }),
                 ),
             };
@@ -898,10 +943,15 @@ impl<'a> Resolver<'a> {
             None => self.table_name_of(&target),
         };
         let Some(ref_table) = schema.table(&ref_table_name) else {
-            self.diags.push(Diagnostic::error(
-                spec.target.span,
-                format!("参照先テーブル `{ref_table_name}` が無い"),
-            ));
+            // 書かれた識別子で話す。生成後のテーブル名は書き手が書いていない名前なので。
+            let written = &spec.target.value;
+            let message = if self.dict.get(written).is_some() {
+                format!("`{written}` にテーブルが無い。`table {written} {{ }}` が要る")
+            } else {
+                format!("`{written}` は `nouns` に無い")
+            };
+            self.diags
+                .push(Diagnostic::error(spec.target.span, message));
             return None;
         };
         if ref_table.pk.len() != 1 {
@@ -1269,6 +1319,12 @@ impl<'a> Resolver<'a> {
         let uq_tpl = self.config.naming.unique_index.clone();
         for i in 0..schema.tables.len() {
             let table_name = schema.tables[i].name.clone();
+            // 名詞を束ねておくと singular / plural / short が索引名でも使える。
+            // 名詞から名前が付いていない表だけ、確定した名前で代用する。
+            let table_noun = schema.tables[i]
+                .noun
+                .clone()
+                .unwrap_or_else(|| Compound::literal(table_name.clone()));
             let specs: Vec<(usize, Vec<String>, bool, Span)> = schema.tables[i]
                 .indexes
                 .iter()
@@ -1277,7 +1333,7 @@ impl<'a> Resolver<'a> {
                 .collect();
             for (j, cols, unique, span) in specs {
                 let vars = Vars::from([
-                    ("table", Compound::literal(table_name.clone())),
+                    ("table", table_noun.clone()),
                     ("columns", Compound::literal(cols.join(&sep))),
                 ]);
                 let tpl = if unique { &uq_tpl } else { &idx_tpl };

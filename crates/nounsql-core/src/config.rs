@@ -87,7 +87,7 @@ impl Default for Config {
         };
         Config {
             naming: Naming {
-                table_name: TableNameStyle::Plural,
+                table_name: TableNameStyle::Singular,
                 primary_key: "id".into(),
                 foreign_key: t("foreign_key"),
                 index: t("index"),

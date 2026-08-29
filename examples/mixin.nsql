@@ -2,9 +2,9 @@
 # `use` expands where it is written, so columns land in reading order.
 
 nouns {
-  user     users      "A person who signs in"
-  article  articles   "A piece of writing"
-  category categories "A grouping for articles"
+  account      "A person who signs in"
+  article   "A piece of writing"
+  category  "A grouping for articles"
 }
 
 mixin identity {
@@ -30,7 +30,7 @@ mixin base {
   use timestamps
 }
 
-table user {
+table account {
   comment "A person who signs in"
   use base
   column email type=text comment="Used to sign in"
@@ -45,7 +45,7 @@ table article {
   # Articles are never listed by date, so drop that index. The column stays.
   except index published_at
 
-  belongs_to user comment="Who wrote it"
+  belongs_to account comment="Who wrote it"
   column title type=text comment="Shown in listings"
 }
 

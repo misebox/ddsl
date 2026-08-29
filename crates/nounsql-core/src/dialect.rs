@@ -4,12 +4,16 @@ pub struct Dialect {
     pub name: &'static str,
     pub types: &'static [&'static str],
     pub reserved: &'static [&'static str],
+    /// 識別子の上限バイト数。超えた分はDBが黙って切り詰める。
+    pub max_identifier: usize,
 }
 
 pub const POSTGRES: Dialect = Dialect {
     name: "postgres",
     types: POSTGRES_TYPES,
     reserved: POSTGRES_RESERVED,
+    // NAMEDATALEN - 1
+    max_identifier: 63,
 };
 
 pub const ALL: &[Dialect] = &[POSTGRES];

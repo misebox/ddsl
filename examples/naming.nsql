@@ -2,15 +2,17 @@
 # The choice between idx_ and ix_ is settled here, once.
 
 naming {
-  # Singular table names. The default is plural.
-  table_name = singular
+  # Plural table names. The default is singular.
+  table_name = plural
 
   # Foreign keys become author_ref. The default is ${singular(table)}_id.
   foreign_key = "${singular(table)}_ref"
 
   # Index names. The defaults start with idx_ and uq_.
-  index = "${table}_${columns}_ix"
-  unique_index = "${table}_${columns}_uq"
+  # short(...) takes the noun's short form, for names that would otherwise
+  # run past the 63 bytes PostgreSQL keeps.
+  index = "${short(table)}_${columns}_ix"
+  unique_index = "${short(table)}_${columns}_uq"
 
   # What joins column names inside an index name. The default is "_".
   column_separator = "__"
@@ -33,9 +35,10 @@ constraints {
 }
 
 nouns {
-  author  authors  "Someone who writes articles"
-  article articles "A piece of writing"
-  tag     tags     "A label attached to articles"
+  # short= is the abbreviation. Left out, it is the singular form.
+  author   short=auth  "Someone who writes articles"
+  article  short=art   "A piece of writing"
+  tag                  "A label attached to articles"
 }
 
 mixin base {

@@ -1,8 +1,8 @@
 # The smallest thing that produces a schema.
 
 nouns {
-  user users "A person who signs in"
-  post posts "Something a user wrote"
+  account  "A person who signs in"
+  post  "Something an account wrote"
 }
 
 mixin base {
@@ -11,7 +11,7 @@ mixin base {
   pk id
 }
 
-table user {
+table account {
   comment "A person who signs in"
   use base
   column email type=text comment="Used to sign in"
@@ -20,8 +20,8 @@ table user {
 }
 
 table post {
-  comment "Something a user wrote"
+  comment "Something an account wrote"
   use base
-  belongs_to user comment="Who wrote it"
+  belongs_to account comment="Who wrote it"
   column title type=text comment="Shown in listings"
 }

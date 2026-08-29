@@ -149,8 +149,15 @@ pub struct ConfigBlock {
 
 #[derive(Debug, Clone)]
 pub struct Noun {
-    pub singular: Name,
-    pub plural: Name,
+    /// ソースが名詞を指す名前。`table` や `belongs_to` が書くのはこれ。
+    /// 出力には出ない。省略された語形の種になるだけ。
+    pub id: Name,
+    /// 省略時は識別子。
+    pub singular: Option<Name>,
+    /// 省略時は単数形の規則変化。
+    pub plural: Option<Name>,
+    /// 名前を詰めたいときの形。省略時は単数形。
+    pub short: Option<Name>,
     pub comment: Option<Spanned<String>>,
 }
 

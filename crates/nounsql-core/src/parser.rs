@@ -20,6 +20,9 @@ struct Bail;
 type PResult<T> = Result<T, Bail>;
 
 const ATTR_KEYS: &[&str] = &["type", "null", "default", "on_update", "comment"];
+
+/// `nouns` の行で使えるキー。
+const NOUN_KEYS: &[&str] = &["singular", "plural", "short"];
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BlockKind {
     Table,
@@ -319,17 +322,62 @@ impl Parser {
     }
 
     fn noun_entry(&mut self) -> PResult<Noun> {
-        let singular = self.expect_ident("単数形")?;
-        let plural = self.expect_ident("複数形")?;
-        let comment = match self.peek() {
-            Tok::Str(_) => Some(self.expect_string("コメント")?),
-            _ => None,
+        let id = self.expect_ident("名詞の識別子")?;
+        let mut noun = Noun {
+            id,
+            singular: None,
+            plural: None,
+            short: None,
+            comment: None,
         };
-        Ok(Noun {
-            singular,
-            plural,
-            comment,
-        })
+        while let Tok::Ident(key) = self.peek().clone() {
+            if *self.peek_at(1) != Tok::Eq {
+                break;
+            }
+            let key_span = self.span();
+            self.bump();
+            self.bump();
+            let word = self.noun_word()?;
+            let slot = match key.as_str() {
+                "singular" => Some(&mut noun.singular),
+                "plural" => Some(&mut noun.plural),
+                "short" => Some(&mut noun.short),
+                _ => None,
+            };
+            match slot {
+                Some(slot) => {
+                    if slot.is_some() {
+                        self.diags.push(Diagnostic::error(
+                            key_span,
+                            format!("`{key}` が重複している"),
+                        ));
+                    }
+                    *slot = Some(word);
+                }
+                None => self.diags.push(Diagnostic::error(
+                    key_span,
+                    format!(
+                        "知らない名詞のキー `{key}`。使えるのは {}",
+                        NOUN_KEYS.join(" / ")
+                    ),
+                )),
+            }
+        }
+        if matches!(self.peek(), Tok::Str(_)) {
+            noun.comment = Some(self.expect_string("説明")?);
+        }
+        Ok(noun)
+    }
+
+    /// 語形。識別子でも文字列でも書ける。
+    fn noun_word(&mut self) -> PResult<Name> {
+        match self.peek().clone() {
+            Tok::Str(s) => {
+                let span = self.bump().span;
+                Ok(Spanned::new(s, span))
+            }
+            _ => self.expect_ident("語形"),
+        }
     }
 
     // ---------- mixin / table ----------

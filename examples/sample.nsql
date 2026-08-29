@@ -16,16 +16,16 @@ constraints {
 }
 
 nouns {
-  user       users       "A person who signs in"
-  category   categories  "A grouping for products"
-  product    products    "Something for sale"
-  order      orders      "A purchase a customer placed"
-  item       items       "One line of something"
-  order_item order_items "One line of an order"
-  post       posts       "Something a user wrote"
-  profile    profiles    "Extra details about one user"
-  history    histories   "A record of a past state"
-  favorite   favorites   "A user liking a post"
+  user        "A person who signs in"
+  category    "A grouping for products"
+  product     "Something for sale"
+  order       "A purchase a customer placed"
+  item        "One line of something"
+  order_item  "One line of an order"
+  post        "Something a user wrote"
+  profile     "Extra details about one user"
+  history     "A record of a past state"
+  favorite    "A user liking a post"
 }
 
 mixin primary_key {

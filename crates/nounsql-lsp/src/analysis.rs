@@ -81,8 +81,8 @@ pub fn definition_span(doc: &Document, r: &Reference) -> Option<Span> {
                 doc.nouns.as_ref().and_then(|e| {
                     e.entries
                         .iter()
-                        .find(|x| &x.singular.value == name)
-                        .map(|x| x.singular.span)
+                        .find(|x| &x.id.value == name)
+                        .map(|x| x.id.span)
                 })
             }),
     }

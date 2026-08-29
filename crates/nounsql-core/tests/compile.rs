@@ -81,24 +81,24 @@ fn blueprint_generates_table_via_name_join() {
 }
 
 #[test]
-fn associate_defaults_to_the_joined_plural_name() {
+fn associate_defaults_to_the_joined_noun_name() {
     let src = concat!(
-        "nouns {\n  user users \"u\"\n  post posts \"p\"\n}\n",
+        "nouns {\n  user \"u\"\n  post \"p\"\n}\n",
         "mixin base {\n  column id type=serial\n  pk id\n}\n",
         "table user {\n  use base\n}\ntable post {\n  use base\n}\n",
         "associate(user, post)\n"
     );
     let (schema, diags) = compile(src);
     assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
-    let t = schema.table("user_posts").expect("user_posts");
+    let t = schema.table("user_post").expect("user_post");
     assert_eq!(t.pk, vec!["user_id", "post_id"]);
 }
 
 #[test]
 fn compound_noun_number_follows_context() {
     let src = concat!(
-        "nouns {\n  user users \"u\"\n  message messages \"m\"\n",
-        "  profile profiles \"p\"\n}\n",
+        "nouns {\n  user \"u\"\n  message \"m\"\n",
+        "  profile \"p\"\n}\n",
         "mixin base {\n  column id type=serial\n  pk id\n}\n",
         "table user {\n  use base\n",
         "  has_many message alias=noun(\"sent\", message)\n",
@@ -108,7 +108,7 @@ fn compound_noun_number_follows_context() {
     );
     let (schema, diags) = compile(src);
     assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
-    let users = schema.table("users").expect("users");
+    let users = schema.table("user").expect("user");
     let aliases: Vec<&str> = users.reverses.iter().map(|r| r.alias.as_str()).collect();
     // 同じ noun(...) でも has_many は複数形、has_one は単数形になる
     assert!(aliases.contains(&"sent_messages"), "{aliases:?}");
@@ -153,7 +153,7 @@ fn belongs_to_alias_defaults_to_singular() {
 }
 
 const TWO_FKS: &str = concat!(
-    "nouns {\n  user users \"u\"\n  message messages \"m\"\n}\n",
+    "nouns {\n  user \"u\"\n  message \"m\"\n}\n",
     "mixin base {\n  column id type=serial\n  pk id\n}\n",
     "table user {\n  use base\n",
     "  has_many message via=\"sender_id\" alias=\"sent\"\n",
@@ -167,10 +167,10 @@ const TWO_FKS: &str = concat!(
 fn two_fks_to_same_table_resolve_by_fk_and_via() {
     let (schema, diags) = compile(TWO_FKS);
     assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
-    let messages = schema.table("messages").expect("messages");
+    let messages = schema.table("message").expect("message");
     let cols: Vec<&str> = messages.columns.keys().map(String::as_str).collect();
     assert_eq!(cols, vec!["id", "sender_id", "receiver_id"]);
-    let users = schema.table("users").expect("users");
+    let users = schema.table("user").expect("user");
     let mut aliases: Vec<&str> = users.reverses.iter().map(|r| r.alias.as_str()).collect();
     aliases.sort_unstable();
     assert_eq!(aliases, vec!["received", "sent"]);
@@ -190,7 +190,7 @@ fn requires_via_when_several_fks_match() {
 #[test]
 fn rejects_has_many_on_one_to_one() {
     let src = concat!(
-        "nouns {\n  user users \"u\"\n  profile profiles \"p\"\n}\n",
+        "nouns {\n  user \"u\"\n  profile \"p\"\n}\n",
         "mixin base {\n  column id type=serial\n  pk id\n}\n",
         "table user {\n  use base\n  has_many profile\n}\n",
         "table profile {\n  use base\n  unique_belongs_to user\n}\n"
@@ -242,13 +242,13 @@ fn comment_template_expands_desc() {
 #[test]
 fn table_comment_wins_over_the_dictionary() {
     let src = concat!(
-        "nouns {\n  user users \"辞書の説明\"\n}\n",
+        "nouns {\n  user \"辞書の説明\"\n}\n",
         "table user {\n  comment \"テーブルの説明\"\n",
         "  column id type=serial\n  pk id\n}\n"
     );
     let (schema, _) = compile(src);
     assert_eq!(
-        schema.table("users").expect("users").comment.as_deref(),
+        schema.table("user").expect("user").comment.as_deref(),
         Some("テーブルの説明")
     );
 }
@@ -269,7 +269,7 @@ fn rejects_comment_in_a_mixin() {
 #[test]
 fn blueprint_argument_must_be_a_registered_noun() {
     let src = concat!(
-        "nouns {\n  post posts \"投稿\"\n}\n",
+        "nouns {\n  post \"投稿\"\n}\n",
         "mixin base {\n  column id type=serial\n  pk id\n}\n",
         "blueprint b target {\n  table t {\n    name noun(target, post)\n    use base\n  }\n}\n",
         "apply_blueprint(b, unknown)\n"
@@ -285,7 +285,7 @@ fn blueprint_argument_must_be_a_registered_noun() {
 #[test]
 fn rejects_comment_on_has_many() {
     let src = concat!(
-        "nouns {\n  user users \"u\"\n  post posts \"p\"\n}\n",
+        "nouns {\n  user \"u\"\n  post \"p\"\n}\n",
         "mixin base {\n  column id type=serial\n  pk id\n}\n",
         "table user {\n  use base\n  has_many post comment=\"だめ\"\n}\n",
         "table post {\n  use base\n  belongs_to user\n}\n"
@@ -303,7 +303,7 @@ fn rejects_comment_on_has_many() {
 #[test]
 fn name_composes_a_noun_that_is_not_registered() {
     let src = concat!(
-        "nouns {\n  user users \"u\"\n  role roles \"r\"\n}\n",
+        "nouns {\n  user \"u\"\n  role \"r\"\n}\n",
         "mixin base {\n  column id type=serial\n  pk id\n}\n",
         "table user { use base }\ntable role { use base }\n",
         "table user_role {\n  name noun(user, role)\n",
@@ -311,13 +311,13 @@ fn name_composes_a_noun_that_is_not_registered() {
     );
     let (schema, diags) = compile(src);
     assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
-    assert!(schema.table("user_roles").is_some());
+    assert!(schema.table("user_role").is_some());
 }
 
 #[test]
 fn a_literal_name_sets_only_the_table_name() {
     let src = concat!(
-        "nouns {\n  customer customers \"c\"\n}\n",
+        "nouns {\n  customer \"c\"\n}\n",
         "table customer {\n  name \"tbl_cust_master\"\n",
         "  column id type=serial\n  pk id\n}\n"
     );
@@ -331,7 +331,7 @@ fn a_literal_name_sets_only_the_table_name() {
 #[test]
 fn detects_a_cycle_between_table_names() {
     let src = concat!(
-        "nouns {\n  a as \"a\"\n  b bs \"b\"\n}\n",
+        "nouns {\n  a \"a\"\n  b \"b\"\n}\n",
         "mixin m {\n  column id type=serial\n  pk id\n}\n",
         "table x {\n  name noun(y, a)\n  use m\n}\n",
         "table y {\n  name noun(x, b)\n  use m\n}\n"
@@ -347,7 +347,7 @@ fn detects_a_cycle_between_table_names() {
 #[test]
 fn rejects_name_on_an_identifier_that_is_a_noun() {
     let src = concat!(
-        "nouns {\n  user users \"u\"\n  role roles \"r\"\n}\n",
+        "nouns {\n  user \"u\"\n  role \"r\"\n}\n",
         "table user {\n  name noun(user, role)\n",
         "  column id type=serial\n  pk id\n}\n"
     );
@@ -397,7 +397,7 @@ fn rejects_override_of_missing_column() {
 #[test]
 fn rejects_blueprint_param_shadowing_noun() {
     let src = concat!(
-        "nouns {\n  user users \"u\"\n  post posts \"p\"\n}\n",
+        "nouns {\n  user \"u\"\n  post \"p\"\n}\n",
         "blueprint b user {\n  table t {\n    name noun(user, post)\n    column x type=text\n  }\n}\n",
         "apply_blueprint(b, post)\n"
     );
@@ -486,7 +486,7 @@ fn warnings(diags: &[nounsql_core::Diagnostic]) -> Vec<&str> {
 #[test]
 fn warns_on_two_indexes_over_the_same_columns() {
     let (_, diags) = compile(
-        "nouns {\n  user users \"A person\"\n}\n\
+        "nouns {\n  user \"A person\"\n}\n\
          table user {\n  column id type=serial\n  column email type=text\n\
          \x20 pk id\n  index email\n  index email\n}\n",
     );
@@ -502,7 +502,7 @@ fn warns_on_two_indexes_over_the_same_columns() {
 #[test]
 fn unique_belongs_to_index_counts_as_a_duplicate() {
     let (_, diags) = compile(
-        "nouns {\n  user users \"A person\"\n  profile profiles \"Details\"\n}\n\
+        "nouns {\n  user \"A person\"\n  profile \"Details\"\n}\n\
          table user {\n  column id type=serial\n  pk id\n}\n\
          table profile {\n  column id type=serial\n  unique_belongs_to user\n\
          \x20 pk id\n  index user_id\n}\n",
@@ -520,7 +520,7 @@ fn unique_belongs_to_index_counts_as_a_duplicate() {
 fn warns_when_foreign_key_index_is_off_and_no_index_covers_it() {
     let (_, diags) = compile(
         "constraints {\n  foreign_key_index = false\n}\n\
-         nouns {\n  user users \"A person\"\n  post posts \"An article\"\n}\n\
+         nouns {\n  user \"A person\"\n  post \"An article\"\n}\n\
          table user {\n  column id type=serial\n  pk id\n}\n\
          table post {\n  column id type=serial\n  belongs_to user\n  pk id\n}\n",
     );
@@ -535,10 +535,115 @@ fn warns_when_foreign_key_index_is_off_and_no_index_covers_it() {
 fn an_index_over_the_foreign_key_satisfies_that_warning() {
     let (_, diags) = compile(
         "constraints {\n  foreign_key_index = false\n}\n\
-         nouns {\n  user users \"A person\"\n  post posts \"An article\"\n}\n\
-         table user {\n  column id type=serial\n  pk id\n}\n\
-         table post {\n  column id type=serial\n  belongs_to user\n  pk id\n\
-         \x20 index user_id, id\n}\n",
+         nouns {\n  member \"A person\"\n  post \"An article\"\n}\n\
+         table member {\n  column id type=serial\n  pk id\n}\n\
+         table post {\n  column id type=serial\n  belongs_to member\n  pk id\n\
+         \x20 index member_id, id\n}\n",
     );
     assert_eq!(warnings(&diags), Vec::<&str>::new());
+}
+
+// ---------- 名詞の識別子と語形 ----------
+
+#[test]
+fn the_identifier_seeds_the_singular_but_never_reaches_the_output() {
+    let (schema, diags) = compile(concat!(
+        "nouns {\n  u short=usr singular=member plural=members \"A person\"\n}\n",
+        "table u {\n  column id type=serial\n  pk id\n  index id\n}\n",
+    ));
+    assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
+    let t = schema.table("member").expect("member");
+    assert_eq!(t.singular.as_deref(), Some("member"));
+    assert_eq!(t.plural.as_deref(), Some("members"));
+    // `u` はソースにしか出ない。
+    assert!(!nounsql_core::codegen::emit(dialect::default(), &schema).contains(" u "));
+}
+
+#[test]
+fn omitted_word_forms_fall_back_through_the_singular() {
+    let (schema, _) = compile(concat!(
+        "nouns {\n  category \"A grouping\"\n}\n",
+        "naming {\n  table_name = plural\n  index = \"idx_${short(table)}_${columns}\"\n}\n",
+        "table category {\n  column id type=serial\n  pk id\n  index id\n}\n",
+    ));
+    let t = schema.table("categories").expect("categories");
+    assert_eq!(t.singular.as_deref(), Some("category"));
+    // 複数形は単数形の規則変化、略語は単数形。
+    assert_eq!(t.plural.as_deref(), Some("categories"));
+    assert_eq!(t.indexes[0].name, "idx_category_id");
+}
+
+#[test]
+fn short_shortens_the_index_name() {
+    let (schema, diags) = compile(concat!(
+        "nouns {\n  organization short=org \"A company\"\n}\n",
+        "naming {\n  index = \"idx_${short(table)}_${columns}\"\n}\n",
+        "table organization {\n  column id type=serial\n  pk id\n  index id\n}\n",
+    ));
+    assert_eq!(errors(&diags).len(), 0, "{:?}", errors(&diags));
+    let t = schema.table("organization").expect("organization");
+    assert_eq!(t.indexes[0].name, "idx_org_id");
+}
+
+#[test]
+fn table_names_default_to_the_singular() {
+    let (schema, _) = compile(concat!(
+        "nouns {\n  member \"A person\"\n}\n",
+        "table member {\n  column id type=serial\n  pk id\n}\n",
+    ));
+    assert!(schema.table("member").is_some());
+    assert!(schema.table("members").is_none());
+}
+
+#[test]
+fn an_unknown_noun_key_is_reported() {
+    let (_, diags) = compile("nouns {\n  member abbrev=mbr \"A person\"\n}\n");
+    assert!(
+        errors(&diags)
+            .iter()
+            .any(|e| e.contains("知らない名詞のキー `abbrev`")),
+        "{:?}",
+        errors(&diags)
+    );
+}
+
+#[test]
+fn a_relation_to_a_noun_without_a_table_names_the_identifier() {
+    let (_, diags) = compile(concat!(
+        "nouns {\n  member \"A person\"\n  badge \"A label\"\n}\n",
+        "table member {\n  column id type=serial\n  pk id\n  belongs_to badge\n}\n",
+    ));
+    assert_eq!(
+        errors(&diags),
+        vec!["`badge` にテーブルが無い。`table badge { }` が要る"]
+    );
+}
+
+#[test]
+fn a_relation_to_an_unregistered_noun_says_so() {
+    let (_, diags) = compile(concat!(
+        "nouns {\n  member \"A person\"\n}\n",
+        "table member {\n  column id type=serial\n  pk id\n  belongs_to badge\n}\n",
+    ));
+    assert!(
+        errors(&diags).contains(&"`badge` は `nouns` に無い"),
+        "{:?}",
+        errors(&diags)
+    );
+}
+
+#[test]
+fn warns_when_a_generated_identifier_exceeds_the_dialect_limit() {
+    let long = "a".repeat(60);
+    let (_, diags) = compile(&format!(
+        "nouns {{\n  {long} \"A very long noun\"\n}}\n\
+         table {long} {{\n  column id type=serial\n  pk id\n}}\n",
+    ));
+    assert!(
+        warnings(&diags)
+            .iter()
+            .any(|w| w.contains("主キー制約名") && w.contains("上限 63")),
+        "{:?}",
+        warnings(&diags)
+    );
 }

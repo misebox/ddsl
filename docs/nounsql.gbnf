@@ -21,7 +21,9 @@ constraints-block ::= "constraints" sp "{" nls (assign nls)* "}"
 assign ::= sp ident sp "=" sp value
 
 nouns-block ::= "nouns" sp "{" nls (noun-entry nls)* "}"
-noun-entry ::= sp ident sp1 ident sp1 string
+noun-entry ::= sp ident (sp1 noun-attr)* (sp1 string)?
+noun-attr ::= noun-key sp "=" sp (ident | string)
+noun-key ::= "singular" | "plural" | "short"
 
 # ---------- mixin ----------
 
@@ -87,7 +89,7 @@ apply-blueprint ::= "apply_blueprint" sp "(" sp ident (sp "," sp ident)+ sp ")"
 value ::= eval-call | fn-call | string | list | ident
 fn-call ::= fn-name sp "(" sp fn-arg (sp "," sp fn-arg)* sp ")"
 fn-arg ::= fn-call | string | ident
-fn-name ::= "noun" | "singular" | "plural" | "desc"
+fn-name ::= "noun" | "singular" | "plural" | "short" | "desc"
 
 eval-call ::= "eval" sp "(" sql-expr ")"
 sql-expr ::= sql-atom*

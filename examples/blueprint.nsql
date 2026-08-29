@@ -3,12 +3,12 @@
 # a parameterised group of table blocks, applied to a noun.
 
 nouns {
-  user     users     "A person who signs in"
-  post     posts     "Something a user wrote"
-  product  products  "Something for sale"
-  approval approvals "A request to publish"
-  step     steps     "One stage of a request"
-  note     notes     "A remark left on a stage"
+  account      "A person who signs in"
+  post      "Something an account wrote"
+  product   "Something for sale"
+  approval  "A request to publish"
+  step      "One stage of a request"
+  note      "A remark left on a stage"
 }
 
 mixin base {
@@ -25,7 +25,7 @@ blueprint approvable target {
     comment "A request to publish a ${target}"
     use base
     belongs_to target comment="What is being approved"
-    belongs_to user fk="requester_id" alias="requester" comment="Who asked"
+    belongs_to account fk="requester_id" alias="requester" comment="Who asked"
     column status type=text comment="Where the request stands"
     index status
   }
@@ -35,7 +35,7 @@ blueprint approvable target {
     comment "One stage of approving a ${target}"
     use base
     belongs_to t_approval comment="Which request"
-    belongs_to user fk="approver_id" alias="approver" comment="Who decides"
+    belongs_to account fk="approver_id" alias="approver" comment="Who decides"
     column position type=integer comment="Order within the request"
     column decision type=text    comment="What they decided"
     index [approver_id, decision]
@@ -46,21 +46,21 @@ blueprint approvable target {
     comment "A remark left while approving a ${target}"
     use base
     belongs_to t_step comment="Which stage"
-    belongs_to user   comment="Who left it"
+    belongs_to account   comment="Who left it"
     column body type=text comment="What they wrote"
   }
 }
 
-table user {
+table account {
   comment "A person who signs in"
   use base
-  column name type=text comment="Shown to other users"
+  column name type=text comment="Shown to other accounts"
 }
 
 table post {
-  comment "Something a user wrote"
+  comment "Something an account wrote"
   use base
-  belongs_to user comment="Who wrote it"
+  belongs_to account comment="Who wrote it"
   column title type=text comment="Shown in listings"
 }
 

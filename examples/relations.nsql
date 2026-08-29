@@ -4,13 +4,13 @@
 # fk=, alias= and via= only appear when names would collide.
 
 nouns {
-  user      users      "A person who signs in"
-  message   messages   "A direct message between two users"
-  category  categories "A grouping, possibly nested"
-  profile   profiles   "Extra details about one user"
-  role      roles      "A permission that can be granted"
-  post      posts      "Something a user wrote"
-  favorite  favorites  "A user liking a post"
+  account      "A person who signs in"
+  message   "A direct message between two accounts"
+  category  "A grouping, possibly nested"
+  profile   "Extra details about one account"
+  role      "A permission that can be granted"
+  post      "Something an account wrote"
+  favorite  "An account liking a post"
 }
 
 mixin base {
@@ -19,10 +19,10 @@ mixin base {
   pk id
 }
 
-table user {
+table account {
   comment "A person who signs in"
   use base
-  column name type=text comment="Shown to other users"
+  column name type=text comment="Shown to other accounts"
 
   # Two references arrive from the same table, so via= picks which one.
   has_many message via="sender_id"   alias=noun("sent", message)
@@ -32,20 +32,20 @@ table user {
   has_one profile
 }
 
-# Two references to one table. Without fk= both would want user_id.
+# Two references to one table. Without fk= both would want account_id.
 table message {
-  comment "A direct message between two users"
+  comment "A direct message between two accounts"
   use base
-  belongs_to user fk="sender_id"   alias="sender"   comment="Who sent it"
-  belongs_to user fk="receiver_id" alias="receiver" comment="Who received it"
+  belongs_to account fk="sender_id"   alias="sender"   comment="Who sent it"
+  belongs_to account fk="receiver_id" alias="receiver" comment="Who received it"
   column body type=text comment="What was written"
 }
 
 table profile {
-  comment "Extra details about one user"
+  comment "Extra details about one account"
   use base
-  unique_belongs_to user comment="Whose profile this is"
-  column bio type=text null=true comment="Free text the user wrote"
+  unique_belongs_to account comment="Whose profile this is"
+  column bio type=text null=true comment="Free text the account wrote"
 }
 
 # A tree. Roots have no parent, so the key has to accept null.
@@ -59,9 +59,9 @@ table category {
 }
 
 table post {
-  comment "Something a user wrote"
+  comment "Something an account wrote"
   use base
-  belongs_to user comment="Who wrote it"
+  belongs_to account comment="Who wrote it"
   belongs_to category comment="Where it is filed"
   override category_id null=true
   column title type=text comment="Shown in listings"
@@ -76,15 +76,15 @@ table role {
 
 # A join table that carries its own columns is an ordinary table
 # with two belongs_to.
-table user_role {
-  # user_role is not in nouns; the name is composed from two that are.
-  name noun(user, role)
-  comment "A permission granted to a user"
-  belongs_to user comment="Who was granted it"
+table account_role {
+  # account_role is not in nouns; the name is composed from two that are.
+  name noun(account, role)
+  comment "A permission granted to a account"
+  belongs_to account comment="Who was granted it"
   belongs_to role comment="What they were granted"
   column granted_at type=timestamptz default=eval(now()) comment="When it was granted"
-  pk [user_id, role_id]
+  pk [account_id, role_id]
 }
 
 # When the join carries nothing, associate is enough. name= sets the noun.
-associate(user, post, name=favorite, comment="A user liking a post")
+associate(account, post, name=favorite, comment="An account liking a post")
