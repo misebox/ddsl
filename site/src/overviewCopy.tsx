@@ -72,10 +72,13 @@ export const OVERVIEW: Record<Lang, OverviewCopy> = {
       heading: "nouns — the dictionary",
       body: () => (
         <>
-          <p>A singular, a plural and a description per entry.</p>
           <p>
-            The plural is written, not guessed. <code>person</code> → <code>people</code>,{" "}
-            <code>child</code> → <code>children</code>: no rule produces those.
+            An identifier and a description per entry. The identifier is what the rest of the file
+            writes; it never reaches the DDL.
+          </p>
+          <p>
+            <code>singular=</code>, <code>plural=</code> and <code>short=</code> set the word forms
+            that do. Left out, each follows from the one before it, so a regular noun is one line.
           </p>
           <p>
             The description says what the noun means to the business, and reaches the DDL as a{" "}
@@ -163,10 +166,10 @@ export const OVERVIEW: Record<Lang, OverviewCopy> = {
       heading: "nouns — 名詞の辞書",
       body: () => (
         <>
-          <p>1行につき、単数形・複数形・説明の3つを書きます。</p>
+          <p>1行につき、識別子と説明を書きます。識別子はファイルの他の場所が書く名前で、DDL には出ません。</p>
           <p>
-            複数形は推測ではなく、書きます。<code>person</code> → <code>people</code>、
-            <code>child</code> → <code>children</code>。これを作る規則はありません。
+            DDL に出る語形は <code>singular=</code>、<code>plural=</code>、<code>short=</code> で決めます。
+            省略すると1つ前から順に埋まるので、規則どおりの名詞は1行で済みます。
           </p>
           <p>
             説明はその名詞が業務で何を指すかで、その名詞から名前が付いた全テーブル・全カラムに{" "}

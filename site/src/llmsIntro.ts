@@ -20,8 +20,8 @@ export const LLMS_INTRO = `# NounSQL
 
 \`\`\`
 nouns {
-  user users "A person who signs in"
-  post posts "An article written by a user"
+  account "A person who signs in"
+  post    "An article written by an account"
 }
 
 mixin timestamps {
@@ -29,7 +29,7 @@ mixin timestamps {
   column updated_at type=timestamptz default=eval(now())
 }
 
-table user {
+table account {
   column id type=serial
   column email type=text
   use timestamps
@@ -41,24 +41,31 @@ table user {
 table post {
   column id type=serial
   column title type=text
-  belongs_to user
+  belongs_to account
   use timestamps
   pk id
 }
 \`\`\`
 
-That produces \`CREATE TABLE users\`, \`CREATE TABLE posts\` with a
-\`user_id\` foreign key and an index on it, \`uq_users_email\`, and a
-\`COMMENT\` on each table taken from the third column of \`nouns\`.
+That produces \`CREATE TABLE account\`, \`CREATE TABLE post\` with an
+\`account_id\` foreign key and an index on it, \`uq_account_email\`, and a
+\`COMMENT\` on each table taken from the noun's description.
 
 Rules a generator needs to know:
 
 - One statement per line. There are no semicolons and no line continuations.
-- A \`table\` is named after a noun, not after the table. \`table user\` produces
-  \`users\`. Write \`name\` inside the block to set the table name directly.
-- Nouns used anywhere must be registered in \`nouns\` with singular, plural and
-  description. Plurals are written, never guessed.
+- A \`table\` is named after a noun. Table names are singular by default;
+  \`naming { table_name = plural }\` switches the whole schema. Write \`name\`
+  inside the block to set one table's name directly.
+- Every noun used anywhere must be registered in \`nouns\`. A line is an
+  identifier, then any of \`singular=\` / \`plural=\` / \`short=\`, then the
+  description. Left out, \`singular\` is the identifier, \`plural\` is its
+  regular inflection, and \`short\` is the singular. Write \`plural=\` when the
+  regular rule is wrong for the word or for the domain.
+- The identifier never appears in the output. It only seeds the word forms.
 - \`belongs_to\` makes the foreign key column; \`has_many\` / \`has_one\` only
   declare the reverse direction and emit nothing.
+- Avoid nouns that are reserved words (\`user\`, \`order\`, \`group\`); they come
+  out quoted.
 - Comments start with \`#\` and run to the end of the line.
 `;

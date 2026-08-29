@@ -289,7 +289,7 @@ impl LanguageServer for Backend {
         }
         if let Some(e) = &a.doc.nouns {
             for entry in &e.entries {
-                push(&entry.singular.value, CompletionItemKind::CLASS, "名詞");
+                push(&entry.id.value, CompletionItemKind::CLASS, "名詞");
             }
         }
         Ok(Some(CompletionResponse::Array(items)))

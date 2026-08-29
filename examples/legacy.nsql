@@ -12,9 +12,9 @@ naming {
 }
 
 nouns {
-  customer customers "Someone who buys"
-  order    orders    "A purchase a customer placed"
-  line     lines     "One line of an order"
+  customer  "Someone who buys"
+  order     "A purchase a customer placed"
+  line      "One line of an order"
 }
 
 table customer {

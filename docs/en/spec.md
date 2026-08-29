@@ -106,8 +106,8 @@ They appear where a value is expected.
 | Function | Returns |
 |---|---|
 | `noun(a, b, ...)` | a compound noun |
-| `singular(x)` / `plural(x)` | the singular or plural form |
-| `desc(x)` | the third column of `nouns` |
+| `singular(x)` / `plural(x)` / `short(x)` | a word form of the noun |
+| `desc(x)` | the noun's description |
 | `eval(x)` | an expression the database evaluates |
 
 ### Blocks
@@ -390,44 +390,63 @@ the named noun's table. When more than one does, `via=` picks which.
 
 ## nouns
 
-The dictionary. Each line is a singular form, a plural form and a description.
+The dictionary. Each line declares an identifier, optionally some word forms,
+and a description.
 
 ```
 nouns {
-  user     users      "A person who signs in"
-  category categories "A grouping for products"
-  person   people     "Someone responsible"
-  child    children   "A nested element"
+  user                                     "A person who signs in"
+  organization  short=org                  "A company that holds accounts"
+  person        plural=people              "Someone responsible"
+  u             singular=user plural=users "The same noun, referred to as u"
 }
 ```
 
-Table names, foreign key columns and relation names are all built from these.
-`singular()` and `plural()` resolve here; a noun that is missing falls back to
-regular inflection and produces a warning.
+The identifier is the name the rest of the file uses. `table`, `belongs_to`,
+`has_many` and `noun(...)` all write it. It never reaches the DDL; it only
+seeds the word forms that do.
 
-The block carries two jobs.
+| Key | Left out |
+|---|---|
+| `singular` | the identifier |
+| `plural` | regular inflection of the singular |
+| `short` | the singular |
 
-**Irregular forms become part of the definition.** Regular inflection covers a
-lot, but not everything.
+The chain runs one way. Writing `singular=` moves `plural` and `short` with it.
 
-| Noun | Regular rule | Correct |
-|---|---|---|
-| `person` | `persons` | `people` |
-| `child` | `childs` | `children` |
-| `analysis` | `analysises` | `analyses` |
-| `datum` | `datums` | `data` |
+The description is the trailing string. It becomes the DDL `COMMENT` on every
+table and column named after the noun, so writing the schema is what keeps the
+glossary current.
 
-Without an entry those names go through, warned about but generated. With one,
-the conversion lives in the source rather than in a comment or a commit message.
+### What the forms are for
 
-**The glossary comes along for free.** The third column becomes the DDL
-`COMMENT`. What a table means to the business ends up in the same file as the
-schema, so writing the schema is what keeps the glossary current.
+`singular()`, `plural()`, `short()` and `desc()` read them. Table names,
+foreign key columns and relation names are built from what those return.
+
+`short` exists for names that would otherwise run past the identifier limit —
+63 bytes in PostgreSQL, past which the database silently truncates.
+
+```
+naming {
+  index = "idx_${short(table)}_${columns}"
+}
+```
+
+`plural` matters when regular inflection is wrong for the word, or wrong for
+the domain. `person` pluralises to `persons` by rule, which is right in a legal
+register and wrong in most others. The dictionary settles it; the rule is only
+a starting point.
+
+### Registering without a table
 
 An entry with no `table` of its own is fine. Nouns that only ever appear as part
 of a name — `item`, `history` — are registered too.
 
-Anything without singular and plural forms — a modifier like `sent` — does not
+Writing a relation to one of them is an error: `belongs_to badge` needs a table
+to point at. Composing a name from one is not: `noun(post, history)` only needs
+the words.
+
+Anything with no singular and plural forms — a modifier like `sent` — does not
 belong here. Write it as a string.
 
 ## Compound nouns
@@ -471,7 +490,7 @@ table user {
 }
 ```
 
-The third column of `nouns` also becomes a table comment. A `comment` inside the
+A noun's description also becomes a table comment. A `comment` inside the
 `table` wins.
 
 `mixin` and `blueprint` never become tables, so they take no `comment`. Use `#`
@@ -516,7 +535,7 @@ Leaving it out is the same as writing this.
 
 ```
 naming {
-  table_name = plural
+  table_name = singular
   primary_key = "id"
   foreign_key = "${singular(table)}_id"
   index = "idx_${table}_${columns}"
@@ -529,11 +548,18 @@ naming {
 }
 ```
 
+`table_name` takes `singular` or `plural`. Singular is the default: a table
+declares the type of its rows, and it keeps the number the same as the foreign
+key columns that point at it. `plural` is there because it is a common house
+style.
+
 `${columns}` joins several columns with `column_separator`; compound nouns join
 with `noun_separator`.
 
-For `belongs_to` the `table` variable is the referenced noun; for `has_many` and
-`has_one` it is the noun on the side that holds the foreign key.
+The `table` variable is a noun everywhere, so `singular(table)`, `plural(table)`
+and `short(table)` all work on it. Bare `${table}` is the table name. For
+`belongs_to` it is the referenced noun; for `has_many` and `has_one` it is the
+noun on the side that holds the foreign key.
 
 ### constraints
 
@@ -620,11 +646,15 @@ A parameter that collides with a noun is an error.
   `unique_belongs_to` creates (warning)
 - a foreign key column has an index when `foreign_key_index = false` turned the
   automatic one off (warning)
+- a relation points at a noun that has a table
+- a generated identifier fits the output target's limit, 63 bytes in PostgreSQL
+  (warning); the database truncates past it, and two truncated names can collide
 
 ## Every construct
 
 ```
 naming {
+  # user and order are reserved words; the plural forms are not.
   table_name = plural
   primary_key = "id"
   foreign_key = "${singular(table)}_id"
@@ -642,16 +672,16 @@ constraints {
 }
 
 nouns {
-  user       users       "A person who signs in"
-  category   categories  "A grouping for products"
-  product    products    "Something for sale"
-  order      orders      "A purchase a customer placed"
-  item       items       "One line of something"
-  order_item order_items "One line of an order"
-  post       posts       "Something a user wrote"
-  profile    profiles    "Extra details about one user"
-  history    histories   "A record of a past state"
-  favorite   favorites   "A user liking a post"
+  user        "A person who signs in"
+  category    "A grouping for products"
+  product     "Something for sale"
+  order       "A purchase a customer placed"
+  item        "One line of something"
+  order_item  "One line of an order"
+  post        "Something a user wrote"
+  profile     "Extra details about one user"
+  history     "A record of a past state"
+  favorite    "A user liking a post"
 }
 
 mixin primary_key {

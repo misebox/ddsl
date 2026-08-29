@@ -7,15 +7,15 @@ use crate::span::Span;
 pub struct Entry {
     pub singular: String,
     pub plural: String,
+    pub short: String,
     pub comment: Option<String>,
     pub span: Span,
 }
 
-/// `nouns` ブロックの名詞辞書。
+/// `nouns` ブロックの名詞辞書。識別子で引く。
 #[derive(Debug, Default)]
 pub struct Dict {
-    by_singular: HashMap<String, Entry>,
-    by_plural: HashMap<String, String>,
+    by_id: HashMap<String, Entry>,
 }
 
 /// 複合名詞の構成要素。
@@ -74,6 +74,18 @@ impl Compound {
         self.render(dict, separator, true)
     }
 
+    /// 略語。数は変えず、名詞の要素をすべて略語にする。
+    pub fn short(&self, dict: &Dict, separator: &str) -> String {
+        self.parts
+            .iter()
+            .map(|part| match part {
+                Part::Literal(text) => text.clone(),
+                Part::Noun(id) => dict.short(id).into_value(),
+            })
+            .collect::<Vec<_>>()
+            .join(separator)
+    }
+
     /// 屈折させず、書かれたまま連結する。
     pub fn as_written(&self, separator: &str) -> String {
         self.parts
@@ -122,45 +134,56 @@ impl Resolved {
 }
 
 impl Dict {
+    /// 語形は書かれていなければ順に埋める。
+    /// 識別子 → 単数形 → 複数形 / 略語、の一方通行。
     pub fn from_block(block: Option<&NounsBlock>) -> Dict {
         let mut dict = Dict::default();
         let Some(block) = block else { return dict };
         for e in &block.entries {
-            let entry = Entry {
-                singular: e.singular.value.clone(),
-                plural: e.plural.value.clone(),
-                comment: e.comment.as_ref().map(|c| c.value.clone()),
-                span: e.singular.span,
-            };
-            dict.by_plural
-                .insert(entry.plural.clone(), entry.singular.clone());
-            dict.by_singular.insert(entry.singular.clone(), entry);
+            let word = |w: &Option<crate::ast::Name>| w.as_ref().map(|w| w.value.clone());
+            let singular = word(&e.singular).unwrap_or_else(|| e.id.value.clone());
+            let plural = word(&e.plural).unwrap_or_else(|| pluralize(&singular));
+            let short = word(&e.short).unwrap_or_else(|| singular.clone());
+            dict.by_id.insert(
+                e.id.value.clone(),
+                Entry {
+                    singular,
+                    plural,
+                    short,
+                    comment: e.comment.as_ref().map(|c| c.value.clone()),
+                    span: e.id.span,
+                },
+            );
         }
         dict
     }
 
-    pub fn get(&self, singular: &str) -> Option<&Entry> {
-        self.by_singular.get(singular)
+    pub fn get(&self, id: &str) -> Option<&Entry> {
+        self.by_id.get(id)
     }
 
     pub fn entries(&self) -> impl Iterator<Item = &Entry> {
-        self.by_singular.values()
+        self.by_id.values()
     }
 
-    pub fn plural(&self, name: &str) -> Resolved {
-        match self.by_singular.get(name) {
+    pub fn plural(&self, id: &str) -> Resolved {
+        match self.by_id.get(id) {
             Some(e) => Resolved::FromDict(e.plural.clone()),
-            None => Resolved::FromRule(pluralize(name)),
+            None => Resolved::FromRule(pluralize(id)),
         }
     }
 
-    pub fn singular(&self, name: &str) -> Resolved {
-        if self.by_singular.contains_key(name) {
-            return Resolved::FromDict(name.to_string());
+    pub fn singular(&self, id: &str) -> Resolved {
+        match self.by_id.get(id) {
+            Some(e) => Resolved::FromDict(e.singular.clone()),
+            None => Resolved::FromRule(id.to_string()),
         }
-        match self.by_plural.get(name) {
-            Some(s) => Resolved::FromDict(s.clone()),
-            None => Resolved::FromRule(singularize(name)),
+    }
+
+    pub fn short(&self, id: &str) -> Resolved {
+        match self.by_id.get(id) {
+            Some(e) => Resolved::FromDict(e.short.clone()),
+            None => Resolved::FromRule(id.to_string()),
         }
     }
 }
@@ -189,19 +212,6 @@ pub fn pluralize(word: &str) -> String {
     format!("{word}s")
 }
 
-pub fn singularize(word: &str) -> String {
-    let lower = word.to_ascii_lowercase();
-    if lower.ends_with("ies") && word.len() > 3 {
-        return format!("{}y", &word[..word.len() - 3]);
-    }
-    for suffix in ["ses", "xes", "zes", "ches", "shes"] {
-        if lower.ends_with(suffix) {
-            return word[..word.len() - 2].to_string();
-        }
-    }
-    word.strip_suffix('s').unwrap_or(word).to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,16 +226,16 @@ mod tests {
         assert_eq!(pluralize("day"), "days");
     }
 
-    fn dict_with(entries: &[(&str, &str)]) -> Dict {
+    /// `(識別子, 単数形, 複数形, 略語)`
+    fn dict_with(entries: &[(&str, &str, &str, &str)]) -> Dict {
         let mut dict = Dict::default();
-        for (singular, plural) in entries {
-            dict.by_plural
-                .insert(plural.to_string(), singular.to_string());
-            dict.by_singular.insert(
-                singular.to_string(),
+        for (id, singular, plural, short) in entries {
+            dict.by_id.insert(
+                id.to_string(),
                 Entry {
                     singular: singular.to_string(),
                     plural: plural.to_string(),
+                    short: short.to_string(),
                     comment: None,
                     span: Span::new(0, 0),
                 },
@@ -236,7 +246,10 @@ mod tests {
 
     #[test]
     fn compound_inflects_only_the_last_noun() {
-        let dict = dict_with(&[("message", "messages"), ("history", "histories")]);
+        let dict = dict_with(&[
+            ("message", "message", "messages", "msg"),
+            ("history", "history", "histories", "hist"),
+        ]);
         let c = Compound {
             parts: vec![Part::Literal("sent".into()), Part::Noun("message".into())],
         };
@@ -255,13 +268,31 @@ mod tests {
         let dict = dict_with(&[]);
         let c = Compound::literal("users");
         assert_eq!(c.plural(&dict, "_"), "users");
-        assert_eq!(c.as_written("_"), "users");
+        assert_eq!(c.short(&dict, "_"), "users");
     }
 
     #[test]
-    fn regular_singulars() {
-        assert_eq!(singularize("posts"), "post");
-        assert_eq!(singularize("categories"), "category");
-        assert_eq!(singularize("boxes"), "box");
+    fn short_replaces_every_noun_and_keeps_the_number() {
+        let dict = dict_with(&[
+            ("message", "message", "messages", "msg"),
+            ("history", "history", "histories", "hist"),
+        ]);
+        let c = Compound {
+            parts: vec![Part::Noun("message".into()), Part::Noun("history".into())],
+        };
+        assert_eq!(c.short(&dict, "_"), "msg_hist");
+
+        let c = Compound {
+            parts: vec![Part::Literal("sent".into()), Part::Noun("message".into())],
+        };
+        assert_eq!(c.short(&dict, "_"), "sent_msg");
+    }
+
+    #[test]
+    fn unregistered_nouns_keep_the_identifier() {
+        let dict = dict_with(&[]);
+        assert_eq!(dict.singular("widget").value(), "widget");
+        assert_eq!(dict.short("widget").value(), "widget");
+        assert_eq!(dict.plural("widget").value(), "widgets");
     }
 }

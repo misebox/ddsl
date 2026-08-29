@@ -26,8 +26,8 @@ Pass `-` as the input to read standard input.
 
 ```
 nouns {
-  user users "A person who signs in"
-  post posts "Something a user wrote"
+  account "A person who signs in"
+  post    "Something an account wrote"
 }
 
 mixin base {
@@ -35,9 +35,15 @@ mixin base {
   pk id
 }
 
+table account {
+  use base
+  column email type=text
+  index email unique
+}
+
 table post {
   use base
-  belongs_to user
+  belongs_to account
   column title type=text
 }
 ```
