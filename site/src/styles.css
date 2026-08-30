@@ -12,6 +12,8 @@
 
 :root {
   --page: 74rem;
+  /* 本文の左右余白。ノッチのある端末では safe area のほうが大きくなる。 */
+  --gutter: clamp(1rem, 4vw, 2.5rem);
 
   --paper: #f5f5f1;
   --raised: #fffffd;
@@ -135,7 +137,9 @@ a:hover { color: var(--derived); }
   gap: 2rem;
   max-width: var(--page);
   margin: 0 auto;
-  padding: 0.85rem clamp(1rem, 4vw, 2.5rem);
+  padding: 0.85rem var(--gutter);
+  padding-inline: max(var(--gutter), env(safe-area-inset-left))
+                  max(var(--gutter), env(safe-area-inset-right));
 }
 
 .brand { text-decoration: none; }
@@ -204,7 +208,9 @@ a:hover { color: var(--derived); }
   gap: clamp(1.5rem, 5vw, 4rem);
   max-width: var(--page);
   margin: 0 auto;
-  padding: 3rem clamp(1rem, 4vw, 2.5rem) 5rem;
+  padding: 3rem var(--gutter) 5rem;
+  padding-inline: max(var(--gutter), env(safe-area-inset-left))
+                  max(var(--gutter), env(safe-area-inset-right));
 }
 
 .shell.is-wide {
@@ -223,7 +229,10 @@ a:hover { color: var(--derived); }
 .foot p {
   max-width: var(--page);
   margin: 0 auto;
-  padding: 1.75rem clamp(1rem, 4vw, 2.5rem);
+  padding: 1.75rem var(--gutter);
+  padding-inline: max(var(--gutter), env(safe-area-inset-left))
+                  max(var(--gutter), env(safe-area-inset-right));
+  padding-bottom: calc(1.75rem + env(safe-area-inset-bottom));
 }
 
 /* ---------- prose ---------- */
@@ -295,6 +304,8 @@ table {
   font-size: 0.92rem;
   display: block;
   overflow-x: auto;
+  /* 横スクロールがページや「戻る」ジェスチャに連鎖しないようにする。 */
+  overscroll-behavior-x: contain;
 }
 
 th, td {
@@ -325,7 +336,7 @@ th {
   gap: 0.3rem;
   padding-left: 1rem;
   border-left: 1px solid var(--rule);
-  max-height: calc(100vh - 8rem);
+  max-height: calc(100svh - 8rem);
   overflow-y: auto;
   overscroll-behavior: contain;
   font-family: var(--mono);
@@ -687,3 +698,89 @@ th {
 
 .pg[data-state="loading"] .pg-pane,
 .pg[data-state="failed"] .pg-pane { opacity: 0.4; }
+
+/* ---------- 電話の幅 ----------
+
+   ナビは6項目あって1行に収まらない。畳んで2段目に落とすと縦に伸びるので、
+   この幅では追従をやめる。隠すより、全部見えて流れて行くほうがいい。 */
+
+@media (max-width: 48rem) {
+  .topbar {
+    position: static;
+    backdrop-filter: none;
+    background: var(--paper);
+  }
+
+  .topbar-inner {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 1.25rem;
+    padding-top: 0.35rem;
+    padding-bottom: 0;
+  }
+
+  .brand { margin-right: auto; }
+
+  .topnav {
+    order: 1;
+    flex: 1 0 100%;
+    gap: 0 1.25rem;
+  }
+
+  /* 指で押せる高さ。隣との間隔は gap が確保する。 */
+  .topnav a,
+  .langs a,
+  .repo {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.5rem;
+  }
+  .topnav a { padding-bottom: 0; border-bottom-width: 2px; }
+
+  /* 追従しなくなったぶん、見出しの上に空ける必要も無くなる。 */
+  h1, h2, h3, h4 { scroll-margin-top: 1rem; }
+
+  .shell { padding-top: 2rem; padding-bottom: 3.5rem; }
+  .hero-actions { gap: 0.6rem; }
+
+  /* タブとボタンも指で押す。 */
+  .tabs-tab { padding: 0.8rem 1rem; }
+
+  /* 件数がタブを押し潰してラベルが折れるので、自分の行に落とす。 */
+  .tabs-bar { flex-wrap: wrap; }
+  .tabs-note {
+    flex: 1 0 100%;
+    margin-left: 0;
+    padding: 0 1rem 0.6rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 0.5rem;
+  }
+  .pg-tab { padding: 0.7rem 0.9rem; }
+  .pg-copy { padding: 0.5rem 0.7rem; }
+
+  /* select も 16px 未満だと iOS が拡大する。ラベルも合わせて上げる。 */
+  .pg-field { font-size: 0.875rem; }
+  /* select は一番長い選択肢の幅で固まる。狭い画面では縮められるようにする。 */
+  .pg-field { min-width: 0; }
+  .pg-field select {
+    font-size: 1rem;
+    padding: 0.5rem 0.6rem;
+    min-height: 2.5rem;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* 主要な操作は指のサイズで。 */
+  .button { min-height: 2.75rem; display: inline-flex; align-items: center; }
+  .brand { display: inline-flex; align-items: center; min-height: 2.5rem; }
+
+  .samples-item { padding: 0.7rem 0 0.7rem 0.85rem; }
+
+  /* 16px 未満の入力欄にフォーカスすると iOS が勝手に拡大する。
+     重ねている強調表示とずれないよう、3つまとめて上げる。 */
+  .pg-hl,
+  .pg-editor textarea,
+  .pg-out { font-size: 1rem; }
+
+  .pg-editor { height: 24rem; }
+}

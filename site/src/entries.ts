@@ -35,7 +35,7 @@ function html(id: PageId, lang: Lang, langs: readonly Lang[]): string {
 <html lang="${lang}">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="${escape(DESCRIPTION[lang])}" />
     <link rel="icon" href="${FAVICON}" />
 ${alternates(id, langs)}
