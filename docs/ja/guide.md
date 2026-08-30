@@ -99,15 +99,15 @@ const { sql, ir, diagnostics } = compile(source, "postgres");
 
 テーブルは名前を3つの形で持ちます。`name` が DDL に出るもので、
 `singular` と `plural` は元になった名詞です。モデル名やコレクション名は
-たいていこちらから作ります。`naming.table_name` を `singular` にすると
-両者は食い違います。
+たいていこちらから作ります。`name` は既定では単数形で、
+`naming.table_name` を `plural` にすると複数形になります。
 
 ```ts
 for (const table of ir.tables) {
-  table.name;      // "posts"  — テーブル
+  table.name;      // "post"   — テーブル
   table.singular;  // "post"   — モデル名に
   table.plural;    // "posts"  — コレクション名に
-  table.comment;   // "Something a user wrote"
+  table.comment;   // "Something an account wrote"
 }
 ```
 
@@ -115,7 +115,7 @@ for (const table of ir.tables) {
 
 ```ts
 for (const column of Object.values(table.columns)) {
-  column.name;     // "user_id"
+  column.name;     // "account_id"
   column.type;     // "integer"
   column.null;     // false
   column.default;  // null / { literal: "0" } / { eval: "now()" }
@@ -132,17 +132,17 @@ for (const column of Object.values(table.columns)) {
 
 ```ts
 for (const fk of table.foreignKeys) {
-  fk.alias;       // "user"     — こちら側での関連名
-  fk.columns;     // ["user_id"]
-  fk.refTable;    // "users"
+  fk.alias;       // "account"  — こちら側での関連名
+  fk.columns;     // ["account_id"]
+  fk.refTable;    // "account"
   fk.refColumns;  // ["id"]
   fk.onDelete;    // "cascade"
 }
 
 for (const reverse of table.reverses) {
   reverse.alias;      // "posts"
-  reverse.fromTable;  // "posts"    — キーがある側
-  reverse.via;        // ["user_id"]
+  reverse.fromTable;  // "post"     — キーがある側
+  reverse.via;        // ["account_id"]
   reverse.unique;     // false      — true なら1対1
 }
 ```

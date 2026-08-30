@@ -40,9 +40,16 @@ Every generated name goes through one of the `naming` templates, and every
 template resolves nouns through the `nouns` dictionary. There is no second path:
 if a name appears in the output, it came from a template and a noun.
 
+A noun is written as an identifier and resolves to word forms: a singular, a
+plural and a short. The identifier is a key and nothing more. It reaches the
+output only by being copied into the singular, which is what leaving `singular=`
+out does.
+
 `noun(a, b, ...)` builds a compound noun rather than a string. Only the last
 element takes the number the context asks for, so the same expression yields
-`sent_message` under `has_one` and `sent_messages` under `has_many`.
+`sent_message` under `has_one` and `sent_messages` under `has_many`. `short()`
+replaces every element instead of only the last, because an abbreviation is not
+a number.
 
 ## Diagnostics
 
@@ -52,7 +59,12 @@ reports everything it can reach.
 
 Warnings cover the cases where the compiler can produce something but probably
 should not: a noun that fell back to regular inflection, a table with no primary
-key, a foreign key column removed by `except`.
+key, a foreign key column removed by `except`, a generated identifier longer
+than the target keeps.
+
+That last one is worth the noise. PostgreSQL truncates at 63 bytes without
+complaining, and nothing goes wrong until two truncated names turn out to be the
+same one.
 
 ## WebAssembly
 

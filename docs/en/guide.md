@@ -99,15 +99,15 @@ const { sql, ir, diagnostics } = compile(source, "postgres");
 
 Each table carries its name in three forms. `name` is what goes in the DDL;
 `singular` and `plural` are the noun it came from, which is what model and
-collection names are usually built out of. They differ once `naming.table_name`
-is set to `singular`.
+collection names are usually built out of. `name` is the singular by default,
+and the plural once `naming.table_name` is set to `plural`.
 
 ```ts
 for (const table of ir.tables) {
-  table.name;      // "posts"  — the table
+  table.name;      // "post"   — the table
   table.singular;  // "post"   — for a model name
   table.plural;    // "posts"  — for a collection name
-  table.comment;   // "Something a user wrote"
+  table.comment;   // "Something an account wrote"
 }
 ```
 
@@ -116,7 +116,7 @@ of the DDL.
 
 ```ts
 for (const column of Object.values(table.columns)) {
-  column.name;     // "user_id"
+  column.name;     // "account_id"
   column.type;     // "integer"
   column.null;     // false
   column.default;  // null, { literal: "0" } or { eval: "now()" }
@@ -134,17 +134,17 @@ Relations appear on both sides. `foreignKeys` is the side that holds the key;
 
 ```ts
 for (const fk of table.foreignKeys) {
-  fk.alias;       // "user"     — the relation name on this side
-  fk.columns;     // ["user_id"]
-  fk.refTable;    // "users"
+  fk.alias;       // "account"  — the relation name on this side
+  fk.columns;     // ["account_id"]
+  fk.refTable;    // "account"
   fk.refColumns;  // ["id"]
   fk.onDelete;    // "cascade"
 }
 
 for (const reverse of table.reverses) {
   reverse.alias;      // "posts"
-  reverse.fromTable;  // "posts"    — where the key lives
-  reverse.via;        // ["user_id"]
+  reverse.fromTable;  // "post"     — where the key lives
+  reverse.via;        // ["account_id"]
   reverse.unique;     // false      — true means one-to-one
 }
 ```
