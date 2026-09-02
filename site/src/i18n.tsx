@@ -33,6 +33,7 @@ type Strings = {
     readonly output: string;
     readonly example: string;
     readonly target: string;
+    readonly compile: string;
     readonly copy: string;
     readonly copied: string;
     readonly diagnostics: string;
@@ -93,6 +94,7 @@ const STRINGS: Record<Lang, Strings> = {
       output: "output",
       example: "example",
       target: "target",
+      compile: "Compile",
       copy: "Copy DDL",
       copied: "Copied",
       diagnostics: "Diagnostics",
@@ -151,6 +153,7 @@ const STRINGS: Record<Lang, Strings> = {
       output: "出力",
       example: "例",
       target: "出力先",
+      compile: "コンパイル",
       copy: "DDL をコピー",
       copied: "コピーしました",
       diagnostics: "診断",

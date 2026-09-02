@@ -602,8 +602,10 @@ th {
 .pg-status.is-ok { color: var(--derived); border-color: color-mix(in srgb, var(--derived) 45%, var(--rule)); }
 .pg-status.is-warning { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--rule)); }
 .pg-status.is-error { color: var(--error); border-color: color-mix(in srgb, var(--error) 45%, var(--rule)); }
+/* 前回組んだときからソースが変わっている。 */
+.pg-status.is-stale { opacity: 0.45; }
 
-.pg-copy {
+.pg-button {
   font: inherit;
   font-size: 0.74rem;
   color: var(--muted);
@@ -613,7 +615,7 @@ th {
   padding: 0.22rem 0.7rem;
   cursor: pointer;
 }
-.pg-copy:hover { color: var(--ink); }
+.pg-button:hover { color: var(--ink); }
 
 .pg-pane { background: var(--code-bg); border-radius: 6px; overflow: hidden; }
 
@@ -756,7 +758,7 @@ th {
     padding-top: 0.5rem;
   }
   .pg-tab { padding: 0.7rem 0.9rem; }
-  .pg-copy { padding: 0.5rem 0.7rem; }
+  .pg-button { padding: 0.5rem 0.7rem; }
 
   /* select も 16px 未満だと iOS が拡大する。ラベルも合わせて上げる。 */
   .pg-field { font-size: 0.875rem; }

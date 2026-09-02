@@ -1,4 +1,4 @@
-import { For, Show, batch, createEffect, createSignal, onMount } from "solid-js";
+import { For, Show, batch, createEffect, createSignal, on, onMount } from "solid-js";
 import { readExample } from "./content";
 import { lang, t } from "./i18n";
 import { samples } from "./sampleList";
@@ -29,6 +29,8 @@ export function Playground() {
   const [result, setResult] = createSignal<Result | undefined>();
   const [error, setError] = createSignal("");
   const [copied, setCopied] = createSignal(false);
+  // 前回組んでからソースが変わったか。
+  const [stale, setStale] = createSignal(false);
 
   let editor!: HTMLTextAreaElement;
   let highlighted!: HTMLPreElement;
@@ -41,20 +43,24 @@ export function Playground() {
       setSource(readExample(file));
     });
     editor?.scrollTo({ top: 0 });
+    compile();
   }
 
-  // 入力・ターゲット・WebAssembly の読み込みのいずれかが変わったら組み直す。
-  createEffect(() => {
+  // 組むのは頼まれたときだけ。入力途中のソースはたいてい通らない。
+  function compile() {
     const ready = wasm();
-    const text = source();
     if (!ready) return;
     try {
-      setResult(ready.compile(text, dialect()) as Result);
+      setResult(ready.compile(source(), dialect()) as Result);
       setError("");
     } catch (e) {
       setError(String(e));
     }
-  });
+    setStale(false);
+  }
+
+  // WebAssembly が届いたら、選んであるサンプルを一度組む。
+  createEffect(on(wasm, () => compile()));
 
   const sourceHtml = () => {
     const text = source();
@@ -149,20 +155,32 @@ export function Playground() {
 
           <label class="pg-field">
             <span>{t().playground.target}</span>
-            <select value={dialect()} onChange={(e) => setDialect(e.currentTarget.value)}>
+            <select
+              value={dialect()}
+              onChange={(e) => {
+                setDialect(e.currentTarget.value);
+                compile();
+              }}
+            >
               <For each={wasm()?.dialects() ?? ["postgres"]}>
                 {(name) => <option value={name}>{name}</option>}
               </For>
             </select>
           </label>
 
+          <button type="button" class="pg-button" onClick={() => compile()}>
+            {t().playground.compile}
+          </button>
+
           <Show when={pane() === "output"}>
-            <button type="button" class="pg-copy" onClick={copySql}>
+            <button type="button" class="pg-button" onClick={copySql}>
               {copied() ? t().playground.copied : t().playground.copy}
             </button>
           </Show>
 
-          <span class={`pg-status ${status().kind}`}>{status().text}</span>
+          <span class={`pg-status ${status().kind}`} classList={{ "is-stale": stale() }}>
+            {status().text}
+          </span>
         </div>
 
         <div class="pg-pane" hidden={pane() !== "source"}>
@@ -177,7 +195,13 @@ export function Playground() {
               autocorrect="off"
               aria-label={t().playground.editorLabel}
               value={source()}
-              onInput={(e) => setSource(e.currentTarget.value)}
+              onInput={(e) => {
+                setSource(e.currentTarget.value);
+                setStale(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) compile();
+              }}
               onScroll={syncScroll}
             />
           </div>
