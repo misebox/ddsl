@@ -559,7 +559,7 @@ checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
 
 [[package]]
 name = "nounsql"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -571,7 +571,7 @@ dependencies = [
 
 [[package]]
 name = "nounsql-core"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "indexmap",
  "serde",
@@ -580,7 +580,7 @@ dependencies = [
 
 [[package]]
 name = "nounsql-lsp"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "nounsql-core",
  "serde_json",
@@ -590,7 +590,7 @@ dependencies = [
 
 [[package]]
 name = "nounsql-wasm"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "nounsql-core",
  "serde",
