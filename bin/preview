@@ -51,7 +51,8 @@ if [ "$BUILD_WASM" = yes ] || [ ! -f "$WASM_OUT/nounsql_wasm_bg.wasm" ]; then
     || die "wasm-pack build に失敗した"
 fi
 
-if [ ! -d site/node_modules ]; then
+# pkg へのリンクは絶対パスなので、リポジトリを動かすと切れる。切れていれば張り直す。
+if [ ! -e site/node_modules/nounsql/package.json ]; then
   log "依存をインストールする"
   (cd site && bun install >/dev/null)
 fi
@@ -59,9 +60,9 @@ fi
 if [ "$MODE" = build ]; then
   log "ビルドする"
   (cd site && bun run build >/dev/null)
-  log "http://127.0.0.1:$PORT/  （Ctrl-C で止める）"
+  log "http://localhost:$PORT/  （Ctrl-C で止める）"
   exec bun run --cwd site vite preview --port "$PORT" --strictPort --outDir ../dist
 fi
 
-log "http://127.0.0.1:$PORT/  （Ctrl-C で止める）"
+log "http://localhost:$PORT/  （Ctrl-C で止める）"
 exec bun run --cwd site vite --port "$PORT" --strictPort
