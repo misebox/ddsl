@@ -35,6 +35,11 @@ const SAMPLES_BY_LANG: Record<Lang, readonly Sample[]> = {
       summary: "Where table names, foreign key columns and index names come from.",
     },
     {
+      file: "identifier.nsql",
+      label: "Identifiers",
+      summary: "Short identifiers in the file, long nouns in the database. Every generated name comes from the noun.",
+    },
+    {
       file: "shop.nsql",
       label: "A real schema",
       summary: "Ten tables of an online shop. On top of conventions, only the differences remain.",
@@ -75,6 +80,11 @@ const SAMPLES_BY_LANG: Record<Lang, readonly Sample[]> = {
       file: "naming.nsql",
       label: "命名",
       summary: "テーブル名・外部キー列・インデックス名がどこから来るか。",
+    },
+    {
+      file: "identifier.nsql",
+      label: "識別子",
+      summary: "ファイルの中は短い識別子、データベースには長い名詞。生成される名前は全部名詞から来る。",
     },
     {
       file: "shop.nsql",

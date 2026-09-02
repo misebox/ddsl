@@ -1,0 +1,39 @@
+# Long nouns behind short identifiers. The identifier is what this file
+# writes; the singular form is what reaches the database.
+
+nouns {
+  a singular=customer_account          "A person or company that buys"
+  b singular=customer_billing_address  "Where an account's invoices go"
+  c singular=customer_support_ticket   "A request for help from an account"
+}
+
+mixin base {
+  column id         type=serial      comment="Primary key"
+  column created_at type=timestamptz default=eval(now()) comment="When the row was created"
+  pk id
+}
+
+# The table is customer_account, and its comment is the noun's description.
+# Nothing below spells the long name out.
+table a {
+  use base
+  column name type=text comment="Shown on invoices"
+  has_many b
+  has_many c
+}
+
+# belongs_to a becomes customer_account_id. The index on it is named after
+# the noun too: idx_customer_billing_address_customer_account_id.
+table b {
+  use base
+  belongs_to a comment="Whose address"
+  column line1 type=text comment="Street and number"
+  column city  type=text comment="Town or city"
+}
+
+table c {
+  use base
+  belongs_to a comment="Who asked"
+  column subject type=text comment="One line, shown in lists"
+  column body    type=text comment="The request itself"
+}
