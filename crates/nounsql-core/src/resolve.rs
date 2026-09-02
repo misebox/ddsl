@@ -84,16 +84,19 @@ impl<'a> Resolver<'a> {
         for m in &self.doc.mixins {
             if let Some(prev) = self.mixins.insert(m.name.value.clone(), m) {
                 self.diags.push(
-                    Diagnostic::error(m.name.span, format!("mixin `{}` が重複", m.name.value))
-                        .with_label(prev.name.span, "最初の定義"),
+                    Diagnostic::error(m.name.span, format!("duplicate mixin `{}`", m.name.value))
+                        .with_label(prev.name.span, "first definition"),
                 );
             }
         }
         for b in &self.doc.blueprints {
             if let Some(prev) = self.blueprints.insert(b.name.value.clone(), b) {
                 self.diags.push(
-                    Diagnostic::error(b.name.span, format!("blueprint `{}` が重複", b.name.value))
-                        .with_label(prev.name.span, "最初の定義"),
+                    Diagnostic::error(
+                        b.name.span,
+                        format!("duplicate blueprint `{}`", b.name.value),
+                    )
+                    .with_label(prev.name.span, "first definition"),
                 );
             }
         }
@@ -147,7 +150,7 @@ impl<'a> Resolver<'a> {
                     self.diags.push(Diagnostic::error(
                         span,
                         format!(
-                            "`apply_blueprint` に `{key}=` は書けない。blueprint 内の `table` に書く"
+                            "`{key}=` is not allowed on `apply_blueprint`; write it on the `table` inside the blueprint"
                         ),
                     ));
                 }
@@ -155,14 +158,14 @@ impl<'a> Resolver<'a> {
             let Some((bp_name, args)) = call.args.split_first() else {
                 self.diags.push(Diagnostic::error(
                     call.span,
-                    "`apply_blueprint` には blueprint 名が必要",
+                    "`apply_blueprint` needs a blueprint name",
                 ));
                 continue;
             };
             let Some(bp) = self.blueprints.get(bp_name.value.as_str()).copied() else {
                 self.diags.push(Diagnostic::error(
                     bp_name.span,
-                    format!("blueprint `{}` が無い", bp_name.value),
+                    format!("no blueprint `{}`", bp_name.value),
                 ));
                 continue;
             };
@@ -171,13 +174,13 @@ impl<'a> Resolver<'a> {
                     Diagnostic::error(
                         call.span,
                         format!(
-                            "blueprint `{}` は引数 {} 個。{} 個渡されている",
+                            "blueprint `{}` takes {} arguments, given {}",
                             bp.name.value,
                             bp.params.len(),
                             args.len()
                         ),
                     )
-                    .with_label(bp.name.span, "定義"),
+                    .with_label(bp.name.span, "definition"),
                 );
                 continue;
             }
@@ -189,7 +192,7 @@ impl<'a> Resolver<'a> {
                     self.diags.push(Diagnostic::error(
                         arg.span,
                         format!(
-                            "`{}` が `nouns` に無い。blueprint の引数は名詞に限る",
+                            "`{}` is not in `nouns`; a blueprint argument must be a noun",
                             arg.value
                         ),
                     ));
@@ -260,7 +263,7 @@ impl<'a> Resolver<'a> {
                         self.diags.push(Diagnostic::error(
                             table.name.span,
                             format!(
-                                "`{}` は名詞と衝突している。`name` に名詞式を書くテーブルには別の名前を付ける",
+                                "`{}` collides with a noun; a table whose `name` is a noun expression needs a different identifier",
                                 table.name.value
                             ),
                         ));
@@ -297,7 +300,7 @@ impl<'a> Resolver<'a> {
         for (ident, _) in pending {
             self.diags.push(Diagnostic::error(
                 ident.span,
-                format!("`{}` の `name` が循環している", ident.value),
+                format!("the `name` of `{}` is circular", ident.value),
             ));
         }
         literal_names
@@ -325,7 +328,7 @@ impl<'a> Resolver<'a> {
                 }
                 if parts.is_empty() {
                     self.diags
-                        .push(Diagnostic::error(value.span, "`noun()` に引数が無い"));
+                        .push(Diagnostic::error(value.span, "`noun()` needs an argument"));
                 }
                 Some(Compound { parts })
             }
@@ -337,7 +340,7 @@ impl<'a> Resolver<'a> {
         if self.dict.get(&name.value).is_some() {
             self.diags.push(Diagnostic::error(
                 name.span,
-                format!("`{}` は名詞と衝突している", name.value),
+                format!("`{}` collides with a noun", name.value),
             ));
         }
     }
@@ -379,7 +382,7 @@ impl<'a> Resolver<'a> {
             Value::Call { name, args } if name.value == "noun" => {
                 if args.is_empty() {
                     self.diags
-                        .push(Diagnostic::error(value.span, "`noun()` に引数が無い"));
+                        .push(Diagnostic::error(value.span, "`noun()` needs an argument"));
                     return None;
                 }
                 let mut parts = Vec::new();
@@ -393,7 +396,7 @@ impl<'a> Resolver<'a> {
                 let [arg] = args.as_slice() else {
                     self.diags.push(Diagnostic::error(
                         value.span,
-                        format!("`{}()` は引数を1つ取る", name.value),
+                        format!("`{}()` takes one argument", name.value),
                     ));
                     return None;
                 };
@@ -407,7 +410,7 @@ impl<'a> Resolver<'a> {
             }
             _ => {
                 self.diags
-                    .push(Diagnostic::error(value.span, "名詞として評価できない"));
+                    .push(Diagnostic::error(value.span, "not a noun expression"));
                 None
             }
         }
@@ -447,7 +450,7 @@ impl<'a> Resolver<'a> {
                             Some(desc) => out.push_str(&desc),
                             None => self.diags.push(Diagnostic::error(
                                 text.span,
-                                format!("`{arg}` に説明が無い。`nouns` の行末に書く"),
+                                format!("`{arg}` has no description; write one at the end of its `nouns` line"),
                             )),
                         },
                     }
@@ -476,28 +479,28 @@ impl<'a> Resolver<'a> {
             diags.push(Diagnostic::warning(
                 span,
                 format!(
-                    "{what} `{name}` は {} バイトで、{} の上限 {limit} を超える。\
-                     DB が切り詰めるので `short` か `naming` で詰める",
+                    "{what} `{name}` is {} bytes, past the {} limit of {limit}; \
+                     the database truncates it, so shorten it with `short` or `naming`",
                     name.len(),
                     self.dialect.name,
                 ),
             ));
         };
         for table in &schema.tables {
-            too_long("テーブル名", &table.name, table.span, &mut self.diags);
+            too_long("table name", &table.name, table.span, &mut self.diags);
             for col in table.columns.values() {
-                too_long("列名", &col.name, col.span, &mut self.diags);
+                too_long("column name", &col.name, col.span, &mut self.diags);
             }
             for idx in &table.indexes {
-                too_long("索引名", &idx.name, idx.span, &mut self.diags);
+                too_long("index name", &idx.name, idx.span, &mut self.diags);
             }
             if !table.pk.is_empty() {
                 let pkey = format!("{}_pkey", table.name);
-                too_long("主キー制約名", &pkey, table.span, &mut self.diags);
+                too_long("primary key name", &pkey, table.span, &mut self.diags);
             }
             for fk in &table.foreign_keys {
                 let name = format!("{}_{}_fkey", table.name, fk.columns.join("_"));
-                too_long("外部キー制約名", &name, fk.span, &mut self.diags);
+                too_long("foreign key name", &name, fk.span, &mut self.diags);
             }
         }
     }
@@ -512,7 +515,7 @@ impl<'a> Resolver<'a> {
         for name in missing {
             self.diags.push(Diagnostic::warning(
                 span,
-                format!("`{name}` が `nouns` に無い。規則変化で解決する"),
+                format!("`{name}` is not in `nouns`; inflecting it by rule"),
             ));
         }
     }
@@ -548,7 +551,7 @@ impl<'a> Resolver<'a> {
                 Some(text) => out.push_str(&text),
                 None => self.diags.push(Diagnostic::error(
                     span,
-                    format!("テンプレート変数 `{name}` はここでは使えない"),
+                    format!("template variable `{name}` is not available here"),
                 )),
             }
         }
@@ -592,7 +595,7 @@ impl<'a> Resolver<'a> {
             if columns.shift_remove(&name.value).is_none() {
                 self.diags.push(Diagnostic::error(
                     name.span,
-                    format!("`{}` は除外できない。定義が無い", name.value),
+                    format!("cannot except `{}`; it is not defined", name.value),
                 ));
             }
             pk.retain(|c| c != &name.value);
@@ -603,7 +606,7 @@ impl<'a> Resolver<'a> {
             if indexes.len() == before {
                 self.diags.push(Diagnostic::error(
                     p.ast.name.span,
-                    format!("除外対象の index `[{}]` が無い", cols.join(", ")),
+                    format!("no index `[{}]` to except", cols.join(", ")),
                 ));
             }
         }
@@ -611,7 +614,7 @@ impl<'a> Resolver<'a> {
             let Some(col) = columns.get_mut(&ov.name.value) else {
                 self.diags.push(Diagnostic::error(
                     ov.name.span,
-                    format!("`{}` は上書きできない。定義が無い", ov.name.value),
+                    format!("cannot override `{}`; it is not defined", ov.name.value),
                 ));
                 continue;
             };
@@ -628,13 +631,13 @@ impl<'a> Resolver<'a> {
             if !col.ty.is_empty() && !self.dialect.has_type(&col.ty) {
                 self.diags.push(Diagnostic::error(
                     col.span,
-                    format!("`{}` は {} の型ではない", col.ty, self.dialect.name),
+                    format!("`{}` is not a {} type", col.ty, self.dialect.name),
                 ));
             }
             if self.dialect.is_reserved(&col.name) {
                 self.diags.push(Diagnostic::warning(
                     col.span,
-                    format!("`{}` は {} の予約語", col.name, self.dialect.name),
+                    format!("`{}` is a {} reserved word", col.name, self.dialect.name),
                 ));
             }
         }
@@ -655,7 +658,7 @@ impl<'a> Resolver<'a> {
                 self.diags.push(Diagnostic::warning(
                     spec.span,
                     format!(
-                        "FK列 `{}` が除外されたので `{}` の関連が消えた",
+                        "the relation to `{1}` is gone; its foreign key column `{0}` was excepted",
                         spec.column, spec.target.value
                     ),
                 ));
@@ -666,14 +669,17 @@ impl<'a> Resolver<'a> {
         if pk.is_empty() && !columns.is_empty() {
             self.diags.push(Diagnostic::warning(
                 p.ast.name.span,
-                format!("`{}` に主キーが無い", p.name),
+                format!("`{}` has no primary key", p.name),
             ));
         }
 
         if self.dialect.is_reserved(&p.name) {
             self.diags.push(Diagnostic::warning(
                 p.ast.name.span,
-                format!("テーブル名 `{}` は {} の予約語", p.name, self.dialect.name),
+                format!(
+                    "table name `{}` is a {} reserved word",
+                    p.name, self.dialect.name
+                ),
             ));
         }
 
@@ -727,9 +733,9 @@ impl<'a> Resolver<'a> {
                             self.diags.push(
                                 Diagnostic::error(
                                     m.span,
-                                    format!("カラム `{}` が重複している", prev.name),
+                                    format!("duplicate column `{}`", prev.name),
                                 )
-                                .with_label(prev.span, "先の定義"),
+                                .with_label(prev.span, "earlier definition"),
                             );
                         }
                     }
@@ -790,9 +796,9 @@ impl<'a> Resolver<'a> {
                         self.diags.push(
                             Diagnostic::error(
                                 m.span,
-                                format!("FK列 `{fk_col}` が既存のカラムと衝突している"),
+                                format!("foreign key column `{fk_col}` collides with a column"),
                             )
-                            .with_label(prev.span, "先の定義"),
+                            .with_label(prev.span, "earlier definition"),
                         );
                         continue;
                     }
@@ -829,7 +835,7 @@ impl<'a> Resolver<'a> {
             let path = use_stack.join(" -> ");
             self.diags.push(Diagnostic::error(
                 name.span,
-                format!("mixin が循環している: {path} -> {}", name.value),
+                format!("circular mixin: {path} -> {}", name.value),
             ));
             return;
         }
@@ -837,7 +843,7 @@ impl<'a> Resolver<'a> {
         else {
             self.diags.push(Diagnostic::error(
                 name.span,
-                format!("mixin `{}` が無い", name.value),
+                format!("no mixin `{}`", name.value),
             ));
             return;
         };
@@ -885,7 +891,7 @@ impl<'a> Resolver<'a> {
         if col.ty.is_empty() {
             errors.push(Diagnostic::error(
                 c.name.span,
-                format!("カラム `{}` に `type=` が無い", c.name.value),
+                format!("column `{}` has no `type=`", c.name.value),
             ));
             return None;
         }
@@ -946,9 +952,9 @@ impl<'a> Resolver<'a> {
             // 書かれた識別子で話す。生成後のテーブル名は書き手が書いていない名前なので。
             let written = &spec.target.value;
             let message = if self.dict.get(written).is_some() {
-                format!("`{written}` にテーブルが無い。`table {written} {{ }}` が要る")
+                format!("`{written}` has no table; it needs `table {written} {{ }}`")
             } else {
-                format!("`{written}` は `nouns` に無い")
+                format!("`{written}` is not in `nouns`")
             };
             self.diags
                 .push(Diagnostic::error(spec.target.span, message));
@@ -957,7 +963,9 @@ impl<'a> Resolver<'a> {
         if ref_table.pk.len() != 1 {
             self.diags.push(Diagnostic::error(
                 spec.target.span,
-                format!("`{ref_table_name}` の主キーが単一列でないため参照できない"),
+                format!(
+                    "cannot reference `{ref_table_name}`; its primary key is not a single column"
+                ),
             ));
             return None;
         }
@@ -1001,8 +1009,10 @@ impl<'a> Resolver<'a> {
 
         for call in calls {
             let [a, b] = call.args.as_slice() else {
-                self.diags
-                    .push(Diagnostic::error(call.span, "`associate` は引数を2つ取る"));
+                self.diags.push(Diagnostic::error(
+                    call.span,
+                    "`associate` takes two arguments",
+                ));
                 continue;
             };
             let joined = match &call.table_name {
@@ -1162,7 +1172,7 @@ impl<'a> Resolver<'a> {
                         self.diags.push(Diagnostic::error(
                             spec.target.span,
                             format!(
-                                "`{from_table}` から `{table_name}` へのFKが無いため `{}` を解決できない",
+                                "cannot resolve `{}`; no foreign key from `{from_table}` to `{table_name}`",
                                 spec.kind.keyword()
                             ),
                         ));
@@ -1172,7 +1182,7 @@ impl<'a> Resolver<'a> {
                         self.diags.push(Diagnostic::error(
                             spec.target.span,
                             format!(
-                                "`{from_table}` から `{table_name}` へのFKが複数ある。`via=` で選ぶ"
+                                "several foreign keys from `{from_table}` to `{table_name}`; pick one with `via=`"
                             ),
                         ));
                         continue;
@@ -1183,7 +1193,7 @@ impl<'a> Resolver<'a> {
                     let want = if c.unique { "has_one" } else { "has_many" };
                     self.diags.push(Diagnostic::error(
                         spec.target.span,
-                        format!("この参照は1対1ではないため `{want}` を使う"),
+                        format!("this reference is not one to one; use `{want}`"),
                     ));
                     continue;
                 }
@@ -1253,7 +1263,7 @@ impl<'a> Resolver<'a> {
             if table.columns.contains_key(&r.alias) {
                 self.diags.push(Diagnostic::error(
                     r.span,
-                    format!("関連名 `{}` が同名のカラムと衝突している", r.alias),
+                    format!("relation name `{}` collides with a column", r.alias),
                 ));
                 continue;
             }
@@ -1261,9 +1271,12 @@ impl<'a> Resolver<'a> {
                 self.diags.push(
                     Diagnostic::error(
                         r.span,
-                        format!("関連名 `{}` が重複している。`alias=` で分ける", r.alias),
+                        format!(
+                            "duplicate relation name `{}`; separate them with `alias=`",
+                            r.alias
+                        ),
                     )
-                    .with_label(prev, "先の関連"),
+                    .with_label(prev, "earlier relation"),
                 );
             }
         }
@@ -1279,12 +1292,12 @@ impl<'a> Resolver<'a> {
                         Diagnostic::warning(
                             index.span,
                             format!(
-                                "`{}` に同じ列組み合わせの index が2つある: [{}]",
+                                "`{}` has two indexes on the same columns: [{}]",
                                 table.name,
                                 index.columns.join(", ")
                             ),
                         )
-                        .with_label(first, "先の index"),
+                        .with_label(first, "earlier index"),
                     );
                 }
             }
@@ -1302,7 +1315,7 @@ impl<'a> Resolver<'a> {
                     self.diags.push(Diagnostic::warning(
                         fk.span,
                         format!(
-                            "FK列 [{}] に index が無い。`foreign_key_index = false` なので自動では作られない",
+                            "no index on foreign key columns [{}]; `foreign_key_index = false` makes none",
                             fk.columns.join(", ")
                         ),
                     ));
@@ -1373,18 +1386,18 @@ fn apply_attrs(col: &mut ir::Column, attrs: &[ast::Attr], errors: &mut Vec<Diagn
         match attr.key.value.as_str() {
             "type" => match &attr.value.value {
                 Value::Ident(t) => col.ty = t.clone(),
-                _ => errors.push(Diagnostic::error(span, "`type=` には型名を書く")),
+                _ => errors.push(Diagnostic::error(span, "`type=` takes a type name")),
             },
             "null" => match &attr.value.value {
                 Value::Ident(v) if v == "true" => col.null = true,
                 Value::Ident(v) if v == "false" => col.null = false,
-                _ => errors.push(Diagnostic::error(span, "`null=` は `true` か `false`")),
+                _ => errors.push(Diagnostic::error(span, "`null=` takes `true` or `false`")),
             },
             "default" => col.default = to_val(&attr.value.value, span, errors),
             "on_update" => col.on_update = to_val(&attr.value.value, span, errors),
             "comment" => match &attr.value.value {
                 Value::Str(s) => col.comment = Some(s.clone()),
-                _ => errors.push(Diagnostic::error(span, "`comment=` には文字列を書く")),
+                _ => errors.push(Diagnostic::error(span, "`comment=` takes a string")),
             },
             _ => {}
         }
@@ -1398,7 +1411,7 @@ fn to_val(v: &Value, span: Span, errors: &mut Vec<Diagnostic>) -> Option<ir::Val
         Value::Num(n) => Some(ir::Val::Literal(n.clone())),
         Value::Ident(i) => Some(ir::Val::Literal(i.clone())),
         _ => {
-            errors.push(Diagnostic::error(span, "値として使えない"));
+            errors.push(Diagnostic::error(span, "not a usable value"));
             None
         }
     }

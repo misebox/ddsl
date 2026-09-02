@@ -94,7 +94,10 @@ impl Parser {
         } else {
             let span = self.span();
             let found = self.peek().describe();
-            Err(self.error(span, format!("{} が必要。{} が来た", tok.describe(), found)))
+            Err(self.error(
+                span,
+                format!("expected {}, found {}", tok.describe(), found),
+            ))
         }
     }
 
@@ -106,7 +109,7 @@ impl Parser {
             }
             other => {
                 let span = self.span();
-                Err(self.error(span, format!("{what} が必要。{} が来た", other.describe())))
+                Err(self.error(span, format!("expected {what}, found {}", other.describe())))
             }
         }
     }
@@ -119,7 +122,7 @@ impl Parser {
             }
             other => {
                 let span = self.span();
-                Err(self.error(span, format!("{what} が必要。{} が来た", other.describe())))
+                Err(self.error(span, format!("expected {what}, found {}", other.describe())))
             }
         }
     }
@@ -165,7 +168,10 @@ impl Parser {
             other => {
                 let span = self.span();
                 let found = other.describe();
-                Err(self.error(span, format!("1行1文。行末が必要だが {found} が来た")))
+                Err(self.error(
+                    span,
+                    format!("one statement per line; expected a line break, found {found}"),
+                ))
             }
         }
     }
@@ -190,7 +196,7 @@ impl Parser {
         let Tok::Ident(kw) = self.peek().clone() else {
             let span = self.span();
             let found = self.peek().describe();
-            return Err(self.error(span, format!("トップレベルに書けない: {found}")));
+            return Err(self.error(span, format!("not allowed at the top level: {found}")));
         };
         match kw.as_str() {
             "naming" | "constraints" => {
@@ -204,8 +210,8 @@ impl Parser {
                     let span = block.name.span;
                     let prev_span = prev.name.span;
                     self.diags.push(
-                        Diagnostic::error(span, format!("`{kw}` ブロックが重複している"))
-                            .with_label(prev_span, "最初の定義"),
+                        Diagnostic::error(span, format!("duplicate `{kw}` block"))
+                            .with_label(prev_span, "first definition"),
                     );
                 } else {
                     *slot = Some(block);
@@ -217,8 +223,8 @@ impl Parser {
                 if let Some(prev) = &doc.nouns {
                     let prev_span = prev.span;
                     self.diags.push(
-                        Diagnostic::error(block.span, "`nouns` ブロックが重複している")
-                            .with_label(prev_span, "最初の定義"),
+                        Diagnostic::error(block.span, "duplicate `nouns` block")
+                            .with_label(prev_span, "first definition"),
                     );
                 } else {
                     doc.nouns = Some(block);
@@ -247,7 +253,10 @@ impl Parser {
             }
             other => {
                 let span = self.span();
-                Err(self.error(span, format!("トップレベルに書けないキーワード `{other}`")))
+                Err(self.error(
+                    span,
+                    format!("keyword `{other}` is not allowed at the top level"),
+                ))
             }
         }
     }
@@ -255,7 +264,7 @@ impl Parser {
     // ---------- 設定ブロック ----------
 
     fn config_block(&mut self) -> PResult<ConfigBlock> {
-        let name = self.expect_ident("ブロック名")?;
+        let name = self.expect_ident("a block name")?;
         let start = name.span;
         if self.expect(Tok::LBrace).is_err() {
             self.recover_block();
@@ -286,7 +295,7 @@ impl Parser {
     }
 
     fn assign(&mut self) -> PResult<Assign> {
-        let key = self.expect_ident("設定キー")?;
+        let key = self.expect_ident("a setting key")?;
         self.expect(Tok::Eq)?;
         let value = self.value()?;
         Ok(Assign { key, value })
@@ -322,7 +331,7 @@ impl Parser {
     }
 
     fn noun_entry(&mut self) -> PResult<Noun> {
-        let id = self.expect_ident("名詞の識別子")?;
+        let id = self.expect_ident("a noun identifier")?;
         let mut noun = Noun {
             id,
             singular: None,
@@ -347,24 +356,22 @@ impl Parser {
             match slot {
                 Some(slot) => {
                     if slot.is_some() {
-                        self.diags.push(Diagnostic::error(
-                            key_span,
-                            format!("`{key}` が重複している"),
-                        ));
+                        self.diags
+                            .push(Diagnostic::error(key_span, format!("duplicate `{key}`")));
                     }
                     *slot = Some(word);
                 }
                 None => self.diags.push(Diagnostic::error(
                     key_span,
                     format!(
-                        "知らない名詞のキー `{key}`。使えるのは {}",
+                        "unknown noun key `{key}`; expected {}",
                         NOUN_KEYS.join(" / ")
                     ),
                 )),
             }
         }
         if matches!(self.peek(), Tok::Str(_)) {
-            noun.comment = Some(self.expect_string("説明")?);
+            noun.comment = Some(self.expect_string("a description")?);
         }
         Ok(noun)
     }
@@ -376,7 +383,7 @@ impl Parser {
                 let span = self.bump().span;
                 Ok(Spanned::new(s, span))
             }
-            _ => self.expect_ident("語形"),
+            _ => self.expect_ident("a word form"),
         }
     }
 
@@ -384,7 +391,7 @@ impl Parser {
 
     fn mixin_block(&mut self) -> PResult<Mixin> {
         let start = self.expect_ident("`mixin`")?.span;
-        let name = self.expect_ident("mixin名")?;
+        let name = self.expect_ident("a mixin name")?;
         let (members, end) = self.member_block(BlockKind::Mixin)?;
         Ok(Mixin {
             name,
@@ -395,7 +402,7 @@ impl Parser {
 
     fn table_block(&mut self) -> PResult<Table> {
         let start = self.expect_ident("`table`")?.span;
-        let name = self.expect_ident("テーブル名")?;
+        let name = self.expect_ident("a table name")?;
         let (members, end) = self.member_block(BlockKind::Table)?;
         Ok(Table {
             name,
@@ -435,16 +442,16 @@ impl Parser {
         let Tok::Ident(kw) = self.peek().clone() else {
             let span = self.span();
             let found = self.peek().describe();
-            return Err(self.error(span, format!("宣言文が必要。{found} が来た")));
+            return Err(self.error(span, format!("expected a statement, found {found}")));
         };
         match kw.as_str() {
             "comment" => {
                 self.bump();
-                let text = self.expect_string("コメント（文字列）")?;
+                let text = self.expect_string("a comment string")?;
                 if kind != BlockKind::Table {
                     self.diags.push(Diagnostic::error(
                         text.span,
-                        "`comment` は `table` にしか書けない",
+                        "`comment` is only allowed in `table`",
                     ));
                 }
                 Ok(Member::Comment(text))
@@ -455,24 +462,24 @@ impl Parser {
                 if kind != BlockKind::Table {
                     self.diags.push(Diagnostic::error(
                         value.span,
-                        "`name` は `table` にしか書けない",
+                        "`name` is only allowed in `table`",
                     ));
                 }
                 Ok(Member::Name(value))
             }
             "column" => {
                 self.bump();
-                let name = self.expect_ident("カラム名")?;
+                let name = self.expect_ident("a column name")?;
                 let attrs = self.attrs()?;
                 Ok(Member::Column(Column { name, attrs }))
             }
             "pk" => {
                 self.bump();
-                Ok(Member::Pk(self.name_list("列名")?))
+                Ok(Member::Pk(self.name_list("a column name")?))
             }
             "index" => {
                 self.bump();
-                let columns = self.name_list("列名")?;
+                let columns = self.name_list("a column name")?;
                 let unique = if self.at_keyword("unique") {
                     self.bump();
                     true
@@ -483,15 +490,15 @@ impl Parser {
             }
             "use" => {
                 self.bump();
-                Ok(Member::Use(self.expect_ident("mixin名")?))
+                Ok(Member::Use(self.expect_ident("a mixin name")?))
             }
             "override" => {
                 self.bump();
-                let name = self.expect_ident("カラム名")?;
+                let name = self.expect_ident("a column name")?;
                 let attrs = self.attrs()?;
                 if attrs.is_empty() {
                     let span = name.span;
-                    return Err(self.error(span, "`override` には属性が1つ以上必要"));
+                    return Err(self.error(span, "`override` needs at least one attribute"));
                 }
                 Ok(Member::Override(Override { name, attrs }))
             }
@@ -499,9 +506,9 @@ impl Parser {
                 self.bump();
                 if self.at_keyword("index") {
                     self.bump();
-                    Ok(Member::ExceptIndex(self.name_list("列名")?))
+                    Ok(Member::ExceptIndex(self.name_list("a column name")?))
                 } else {
-                    Ok(Member::Except(self.name_list("カラム名")?))
+                    Ok(Member::Except(self.name_list("a column name")?))
                 }
             }
             "belongs_to" => self.relation(RelationKind::BelongsTo),
@@ -510,14 +517,17 @@ impl Parser {
             "has_one" => self.relation(RelationKind::HasOne),
             other => {
                 let span = self.span();
-                Err(self.error(span, format!("宣言文にならないキーワード `{other}`")))
+                Err(self.error(
+                    span,
+                    format!("keyword `{other}` does not start a statement"),
+                ))
             }
         }
     }
 
     fn relation(&mut self, kind: RelationKind) -> PResult<Member> {
         self.bump();
-        let target = self.expect_ident("参照先の語")?;
+        let target = self.expect_ident("the noun to reference")?;
         let mut rel = Relation {
             kind,
             target,
@@ -537,7 +547,7 @@ impl Parser {
                 self.diags.push(Diagnostic::error(
                     key_span,
                     format!(
-                        "`{}` に書けない属性キー `{key}`。使えるのは {}",
+                        "unknown attribute `{key}` on `{}`; expected {}",
                         kind.keyword(),
                         RELATION_KEYS.join(" / ")
                     ),
@@ -549,37 +559,35 @@ impl Parser {
                     rel.alias.replace(value).is_some()
                 }
                 "fk" => {
-                    let value = self.expect_string("列名（文字列）")?;
+                    let value = self.expect_string("a column name string")?;
                     rel.fk.replace(value).is_some()
                 }
                 "comment" => {
-                    let value = self.expect_string("コメント（文字列）")?;
+                    let value = self.expect_string("a comment string")?;
                     rel.comment.replace(value).is_some()
                 }
                 _ => {
-                    let value = self.expect_string("列名（文字列）")?;
+                    let value = self.expect_string("a column name string")?;
                     rel.via.replace(value).is_some()
                 }
             };
             if duplicated {
-                self.diags.push(Diagnostic::error(
-                    key_span,
-                    format!("`{key}` が重複している"),
-                ));
+                self.diags
+                    .push(Diagnostic::error(key_span, format!("duplicate `{key}`")));
             }
         }
         if rel.fk.is_some() && !kind.owns_fk() {
             let span = rel.fk.as_ref().map(|f| f.span).unwrap_or(rel.target.span);
             self.diags.push(Diagnostic::error(
                 span,
-                format!("`{}` に `fk=` は書けない", kind.keyword()),
+                format!("`fk=` is not allowed on `{}`", kind.keyword()),
             ));
         }
         if rel.via.is_some() && kind.owns_fk() {
             let span = rel.via.as_ref().map(|v| v.span).unwrap_or(rel.target.span);
             self.diags.push(Diagnostic::error(
                 span,
-                format!("`{}` に `via=` は書けない", kind.keyword()),
+                format!("`via=` is not allowed on `{}`", kind.keyword()),
             ));
         }
         if rel.comment.is_some() && !kind.owns_fk() {
@@ -591,7 +599,7 @@ impl Parser {
             self.diags.push(Diagnostic::error(
                 span,
                 format!(
-                    "`{}` は列を作らないので `comment=` は書けない",
+                    "`comment=` is not allowed on `{}`; it creates no column",
                     kind.keyword()
                 ),
             ));
@@ -612,7 +620,7 @@ impl Parser {
                 self.diags.push(Diagnostic::error(
                     key_span,
                     format!(
-                        "知らない属性キー `{key}`。使えるのは {}",
+                        "unknown attribute `{key}`; expected {}",
                         ATTR_KEYS.join(" / ")
                     ),
                 ));
@@ -642,7 +650,7 @@ impl Parser {
             self.expect(Tok::RBracket)?;
             if names.is_empty() {
                 let span = self.prev_span();
-                return Err(self.error(span, format!("{what} が空")));
+                return Err(self.error(span, "empty list"));
             }
             Ok(names)
         } else {
@@ -654,10 +662,10 @@ impl Parser {
 
     fn blueprint_block(&mut self) -> PResult<Blueprint> {
         let start = self.expect_ident("`blueprint`")?.span;
-        let name = self.expect_ident("blueprint名")?;
+        let name = self.expect_ident("a blueprint name")?;
         let mut params = Vec::new();
         while matches!(self.peek(), Tok::Ident(_)) {
-            params.push(self.expect_ident("引数名")?);
+            params.push(self.expect_ident("a parameter name")?);
         }
 
         if self.expect(Tok::LBrace).is_err() {
@@ -680,7 +688,7 @@ impl Parser {
                 let found = self.peek().describe();
                 self.diags.push(Diagnostic::error(
                     span,
-                    format!("blueprint 内に書けるのは `table` のみ。{found} が来た"),
+                    format!("a blueprint holds only `table`, found {found}"),
                 ));
                 self.recover_line();
             }
@@ -697,7 +705,7 @@ impl Parser {
     // ---------- マクロ ----------
 
     fn macro_call(&mut self) -> PResult<MacroCall> {
-        let name = self.expect_ident("マクロ名")?;
+        let name = self.expect_ident("a macro name")?;
         let start = name.span;
         self.expect(Tok::LParen)?;
         let mut args = Vec::new();
@@ -709,17 +717,17 @@ impl Parser {
             }
             // `キー=値` は名前付き、それ以外は位置引数。
             if matches!(self.peek(), Tok::Ident(_)) && *self.peek_at(1) == Tok::Eq {
-                let key = self.expect_ident("キー")?;
+                let key = self.expect_ident("a key")?;
                 self.expect(Tok::Eq)?;
                 let duplicated = match key.value.as_str() {
                     "name" => table_name.replace(self.value()?).is_some(),
                     "comment" => comment
-                        .replace(self.expect_string("コメント（文字列）")?)
+                        .replace(self.expect_string("a comment string")?)
                         .is_some(),
                     other => {
                         self.diags.push(Diagnostic::error(
                             key.span,
-                            format!("知らないキー `{other}`。使えるのは name / comment"),
+                            format!("unknown key `{other}`; expected name / comment"),
                         ));
                         self.value()?;
                         false
@@ -728,11 +736,11 @@ impl Parser {
                 if duplicated {
                     self.diags.push(Diagnostic::error(
                         key.span,
-                        format!("`{}` が重複している", key.value),
+                        format!("duplicate `{}`", key.value),
                     ));
                 }
             } else {
-                args.push(self.expect_ident("引数")?);
+                args.push(self.expect_ident("an argument")?);
             }
             if !self.eat(&Tok::Comma) {
                 break;
@@ -772,12 +780,12 @@ impl Parser {
             }
             Tok::Ident(name) => {
                 if *self.peek_at(1) == Tok::LParen {
-                    let call_name = self.expect_ident("関数名")?;
+                    let call_name = self.expect_ident("a function name")?;
                     if !VALUE_FNS.contains(&name.as_str()) {
                         self.diags.push(Diagnostic::error(
                             call_name.span,
                             format!(
-                                "値の位置で使える関数は {} のみ。`{name}` は使えない",
+                                "unknown function `{name}` in a value; expected {}",
                                 VALUE_FNS.join(" / ")
                             ),
                         ));
@@ -809,7 +817,7 @@ impl Parser {
             other => {
                 let span = self.span();
                 let found = other.describe();
-                Err(self.error(span, format!("値が必要。{found} が来た")))
+                Err(self.error(span, format!("expected a value, found {found}")))
             }
         }
     }
@@ -823,7 +831,7 @@ impl Parser {
             if self.at(&Tok::RBracket) || self.at(&Tok::Eof) {
                 break;
             }
-            items.push(self.expect_ident("リスト要素")?);
+            items.push(self.expect_ident("a list item")?);
             self.skip_newlines();
             if !self.eat(&Tok::Comma) {
                 break;

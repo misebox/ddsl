@@ -146,7 +146,7 @@ pub fn compile(source: &str, dialect_name: &str) -> Result<CompileOutput, JsValu
         dialect::default()
     } else {
         dialect::by_name(dialect_name)
-            .ok_or_else(|| JsValue::from_str(&format!("知らない dialect `{dialect_name}`")))?
+            .ok_or_else(|| JsValue::from_str(&format!("unknown dialect `{dialect_name}`")))?
     };
 
     let index = LineIndex::new(source);

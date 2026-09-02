@@ -181,7 +181,9 @@ fn requires_via_when_several_fks_match() {
     let src = TWO_FKS.replace("via=\"sender_id\" alias=\"sent\"", "alias=\"sent\"");
     let (_, diags) = compile(&src);
     assert!(
-        errors(&diags).iter().any(|m| m.contains("`via=` で選ぶ")),
+        errors(&diags)
+            .iter()
+            .any(|m| m.contains("pick one with `via=`")),
         "{:?}",
         errors(&diags)
     );
@@ -208,7 +210,7 @@ fn rejects_duplicate_relation_alias() {
     let src = TWO_FKS.replace("alias=\"received\"", "alias=\"sent\"");
     let (_, diags) = compile(&src);
     assert!(
-        errors(&diags).iter().any(|m| m.contains("重複")),
+        errors(&diags).iter().any(|m| m.contains("duplicate")),
         "{:?}",
         errors(&diags)
     );
@@ -260,7 +262,7 @@ fn rejects_comment_in_a_mixin() {
     assert!(
         errors(&diags)
             .iter()
-            .any(|m| m.contains("`table` にしか書けない")),
+            .any(|m| m.contains("only allowed in `table`")),
         "{:?}",
         errors(&diags)
     );
@@ -276,7 +278,7 @@ fn blueprint_argument_must_be_a_registered_noun() {
     );
     let (_, diags) = compile(src);
     assert!(
-        errors(&diags).iter().any(|m| m.contains("名詞に限る")),
+        errors(&diags).iter().any(|m| m.contains("must be a noun")),
         "{:?}",
         errors(&diags)
     );
@@ -294,7 +296,7 @@ fn rejects_comment_on_has_many() {
     assert!(
         errors(&diags)
             .iter()
-            .any(|m| m.contains("`comment=` は書けない")),
+            .any(|m| m.contains("`comment=` is not allowed")),
         "{:?}",
         errors(&diags)
     );
@@ -338,7 +340,7 @@ fn detects_a_cycle_between_table_names() {
     );
     let (_, diags) = compile(src);
     assert!(
-        errors(&diags).iter().any(|m| m.contains("循環")),
+        errors(&diags).iter().any(|m| m.contains("circular")),
         "{:?}",
         errors(&diags)
     );
@@ -353,7 +355,9 @@ fn rejects_name_on_an_identifier_that_is_a_noun() {
     );
     let (_, diags) = compile(src);
     assert!(
-        errors(&diags).iter().any(|m| m.contains("名詞と衝突")),
+        errors(&diags)
+            .iter()
+            .any(|m| m.contains("collides with a noun")),
         "{:?}",
         errors(&diags)
     );
@@ -364,7 +368,7 @@ fn detects_mixin_cycle() {
     let src = "mixin a {\n  use b\n}\nmixin b {\n  use a\n}\ntable x {\n  use a\n}\n";
     let (_, diags) = compile(src);
     assert!(
-        errors(&diags).iter().any(|m| m.contains("循環")),
+        errors(&diags).iter().any(|m| m.contains("circular")),
         "{:?}",
         errors(&diags)
     );
@@ -377,7 +381,7 @@ fn rejects_unknown_type() {
     assert!(
         errors(&diags)
             .iter()
-            .any(|m| m.contains("postgres の型ではない")),
+            .any(|m| m.contains("is not a postgres type")),
         "{:?}",
         errors(&diags)
     );
@@ -388,7 +392,7 @@ fn rejects_override_of_missing_column() {
     let src = "table x {\n  column a type=text\n  override b null=true\n}\n";
     let (_, diags) = compile(src);
     assert!(
-        errors(&diags).iter().any(|m| m.contains("上書きできない")),
+        errors(&diags).iter().any(|m| m.contains("cannot override")),
         "{:?}",
         errors(&diags)
     );
@@ -403,7 +407,9 @@ fn rejects_blueprint_param_shadowing_noun() {
     );
     let (_, diags) = compile(src);
     assert!(
-        errors(&diags).iter().any(|m| m.contains("名詞と衝突")),
+        errors(&diags)
+            .iter()
+            .any(|m| m.contains("collides with a noun")),
         "{:?}",
         errors(&diags)
     );
@@ -493,7 +499,7 @@ fn warns_on_two_indexes_over_the_same_columns() {
     assert!(
         warnings(&diags)
             .iter()
-            .any(|m| m.contains("同じ列組み合わせの index")),
+            .any(|m| m.contains("indexes on the same columns")),
         "{:?}",
         diags
     );
@@ -510,7 +516,7 @@ fn unique_belongs_to_index_counts_as_a_duplicate() {
     assert!(
         warnings(&diags)
             .iter()
-            .any(|m| m.contains("同じ列組み合わせの index")),
+            .any(|m| m.contains("indexes on the same columns")),
         "{:?}",
         diags
     );
@@ -525,7 +531,9 @@ fn warns_when_foreign_key_index_is_off_and_no_index_covers_it() {
          table post {\n  column id type=serial\n  belongs_to user\n  pk id\n}\n",
     );
     assert!(
-        warnings(&diags).iter().any(|m| m.contains("index が無い")),
+        warnings(&diags)
+            .iter()
+            .any(|m| m.contains("no index on foreign key columns")),
         "{:?}",
         diags
     );
@@ -601,7 +609,7 @@ fn an_unknown_noun_key_is_reported() {
     assert!(
         errors(&diags)
             .iter()
-            .any(|e| e.contains("知らない名詞のキー `abbrev`")),
+            .any(|e| e.contains("unknown noun key `abbrev`")),
         "{:?}",
         errors(&diags)
     );
@@ -615,7 +623,7 @@ fn a_relation_to_a_noun_without_a_table_names_the_identifier() {
     ));
     assert_eq!(
         errors(&diags),
-        vec!["`badge` にテーブルが無い。`table badge { }` が要る"]
+        vec!["`badge` has no table; it needs `table badge { }`"]
     );
 }
 
@@ -626,7 +634,7 @@ fn a_relation_to_an_unregistered_noun_says_so() {
         "table member {\n  column id type=serial\n  pk id\n  belongs_to badge\n}\n",
     ));
     assert!(
-        errors(&diags).contains(&"`badge` は `nouns` に無い"),
+        errors(&diags).contains(&"`badge` is not in `nouns`"),
         "{:?}",
         errors(&diags)
     );
@@ -642,7 +650,7 @@ fn warns_when_a_generated_identifier_exceeds_the_dialect_limit() {
     assert!(
         warnings(&diags)
             .iter()
-            .any(|w| w.contains("主キー制約名") && w.contains("上限 63")),
+            .any(|w| w.contains("primary key name") && w.contains("limit of 63")),
         "{:?}",
         warnings(&diags)
     );

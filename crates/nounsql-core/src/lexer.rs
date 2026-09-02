@@ -27,10 +27,10 @@ impl Tok {
     pub fn describe(&self) -> String {
         match self {
             Tok::Ident(s) => format!("`{s}`"),
-            Tok::Str(_) => "文字列".into(),
+            Tok::Str(_) => "a string".into(),
             Tok::Num(s) => format!("`{s}`"),
             Tok::Eval(_) => "`eval(...)`".into(),
-            Tok::Comment(_) => "コメント".into(),
+            Tok::Comment(_) => "a comment".into(),
             Tok::LBrace => "`{`".into(),
             Tok::RBrace => "`}`".into(),
             Tok::LBracket => "`[`".into(),
@@ -39,8 +39,8 @@ impl Tok {
             Tok::RParen => "`)`".into(),
             Tok::Comma => "`,`".into(),
             Tok::Eq => "`=`".into(),
-            Tok::Newline => "改行".into(),
-            Tok::Eof => "入力の終わり".into(),
+            Tok::Newline => "a line break".into(),
+            Tok::Eof => "the end of the input".into(),
         }
     }
 }
@@ -104,8 +104,10 @@ impl<'a> Lexer<'a> {
                 _ => {
                     let span = Span::new(self.pos, self.pos + 1);
                     let ch = self.src[self.pos..].chars().next().unwrap_or('?');
-                    self.diags
-                        .push(Diagnostic::error(span, format!("解釈できない文字 `{ch}`")));
+                    self.diags.push(Diagnostic::error(
+                        span,
+                        format!("unexpected character `{ch}`"),
+                    ));
                     self.pos += ch.len_utf8();
                 }
             }
@@ -141,7 +143,7 @@ impl<'a> Lexer<'a> {
             if self.pos >= self.bytes.len() || self.bytes[self.pos] == b'\n' {
                 let span = Span::new(start, self.pos);
                 self.diags
-                    .push(Diagnostic::error(span, "文字列が閉じられていない"));
+                    .push(Diagnostic::error(span, "unterminated string"));
                 self.tokens.push(Token::new(Tok::Str(value), span));
                 return;
             }
@@ -201,7 +203,7 @@ impl<'a> Lexer<'a> {
             }
             let span = Span::new(start, self.pos);
             self.diags
-                .push(Diagnostic::error(span, "`eval(` が閉じられていない"));
+                .push(Diagnostic::error(span, "unterminated `eval(`"));
             self.tokens.push(Token::new(Tok::Eval(String::new()), span));
             return;
         }

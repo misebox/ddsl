@@ -65,7 +65,7 @@ fn errors_go_to_stderr_and_exit_nonzero() {
         .write_stdin("table x {\n  column a type=nosuch\n}\n")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("postgres の型ではない"))
+        .stderr(predicate::str::contains("is not a postgres type"))
         .stdout(predicate::str::is_empty());
 }
 
@@ -75,7 +75,7 @@ fn unknown_dialect_is_reported() {
         .args(["--dialect", "mysql", "check", SAMPLE])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("知らない dialect"));
+        .stderr(predicate::str::contains("unknown dialect"));
 }
 
 fn tempdir() -> std::path::PathBuf {

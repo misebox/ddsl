@@ -6,38 +6,42 @@ use clap::{Parser, Subcommand};
 use nounsql_core::{Diagnostic, Severity, codegen, diag, dialect, parse, resolve};
 
 #[derive(Parser)]
-#[command(name = "nounsql", version, about = "DB設計用DSLコンパイラ")]
+#[command(
+    name = "nounsql",
+    version,
+    about = "A DSL compiler for database schema design"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
 
-    /// 出力ターゲット
+    /// Output target
     #[arg(long, global = true, default_value = "postgres")]
     dialect: String,
 
-    /// 出力先。省略すると標準出力に書く
+    /// Write to a file instead of stdout
     #[arg(short, long, global = true, value_name = "PATH")]
     output: Option<PathBuf>,
 
-    /// 警告があっても失敗させる
+    /// Exit non-zero if anything was warned about
     #[arg(long, global = true)]
     deny_warnings: bool,
 }
 
 #[derive(Subcommand)]
 enum Command {
-    /// 解析と検証だけ行い、診断を表示する
+    /// Parse and resolve only, printing the diagnostics
     Check { input: PathBuf },
-    /// 構文木をデバッグ出力する
+    /// Print the syntax tree
     Ast { input: PathBuf },
-    /// 中間表現（解決済みスキーマ）を出力する
+    /// Print the resolved schema
     Ir {
         input: PathBuf,
-        /// JSON で出力する。外部のコード生成に渡すときはこちら
+        /// Print it as JSON, for handing to another code generator
         #[arg(long)]
         json: bool,
     },
-    /// DDL を出力する
+    /// Print the DDL
     Sql { input: PathBuf },
 }
 
@@ -57,7 +61,7 @@ fn main() -> Result<()> {
 
     let Some(dialect) = dialect::by_name(&cli.dialect) else {
         anyhow::bail!(
-            "知らない dialect `{}`。使えるのは {}",
+            "unknown dialect `{}`; expected {}",
             cli.dialect,
             dialect::names().join(" / ")
         );
@@ -79,7 +83,7 @@ fn main() -> Result<()> {
             Command::Ir { json, .. } => {
                 out = if *json {
                     let mut text = serde_json::to_string_pretty(&schema)
-                        .context("中間表現を JSON にできない")?;
+                        .context("could not encode the schema as JSON")?;
                     text.push('\n');
                     text
                 } else {
@@ -112,7 +116,8 @@ fn main() -> Result<()> {
     let warnings = count(&diags, Severity::Warning);
     if errors > 0 || (cli.deny_warnings && warnings > 0) {
         if errors == 0 {
-            eprintln!("error: 警告が {warnings} 件ある（--deny-warnings）");
+            let s = if warnings == 1 { "" } else { "s" };
+            eprintln!("error: {warnings} warning{s} (--deny-warnings)");
         }
         std::process::exit(1);
     }
@@ -129,11 +134,11 @@ fn read_input(path: &Path) -> Result<(String, String)> {
         let mut src = String::new();
         std::io::stdin()
             .read_to_string(&mut src)
-            .context("標準入力を読めない")?;
+            .context("could not read standard input")?;
         return Ok((src, "<stdin>".into()));
     }
     let name = path.display().to_string();
-    let src = std::fs::read_to_string(path).with_context(|| format!("読めない: {name}"))?;
+    let src = std::fs::read_to_string(path).with_context(|| format!("could not read {name}"))?;
     Ok((src, name))
 }
 
@@ -142,9 +147,10 @@ fn write_output(path: Option<&Path>, text: &str) -> Result<()> {
         Some(path) => {
             if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
                 std::fs::create_dir_all(dir)
-                    .with_context(|| format!("作れない: {}", dir.display()))?;
+                    .with_context(|| format!("could not create {}", dir.display()))?;
             }
-            std::fs::write(path, text).with_context(|| format!("書けない: {}", path.display()))
+            std::fs::write(path, text)
+                .with_context(|| format!("could not write {}", path.display()))
         }
         None => {
             let mut stdout = std::io::stdout().lock();

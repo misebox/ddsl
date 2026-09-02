@@ -126,7 +126,7 @@ impl Config {
             if !NAMING_KEYS.contains(&key) {
                 diags.push(Diagnostic::error(
                     entry.key.span,
-                    format!("知らない `naming` のキー `{key}`"),
+                    format!("unknown `naming` key `{key}`"),
                 ));
                 continue;
             }
@@ -137,7 +137,7 @@ impl Config {
                     Some("singular") => self.naming.table_name = TableNameStyle::Singular,
                     _ => diags.push(Diagnostic::error(
                         span,
-                        "`table_name` は `plural` か `singular`",
+                        "`table_name` takes `plural` or `singular`",
                     )),
                 },
                 "primary_key" | "column_separator" | "noun_separator" => {
@@ -148,13 +148,13 @@ impl Config {
                             _ => self.naming.noun_separator = s.into(),
                         },
                         None => {
-                            diags.push(Diagnostic::error(span, format!("`{key}` には文字列を書く")))
+                            diags.push(Diagnostic::error(span, format!("`{key}` takes a string")))
                         }
                     }
                 }
                 _ => {
                     let Some(s) = value_string(&entry.value.value) else {
-                        diags.push(Diagnostic::error(span, format!("`{key}` には文字列を書く")));
+                        diags.push(Diagnostic::error(span, format!("`{key}` takes a string")));
                         continue;
                     };
                     match Template::parse(s) {
@@ -180,7 +180,7 @@ impl Config {
             if !CONSTRAINT_KEYS.contains(&key) {
                 diags.push(Diagnostic::error(
                     entry.key.span,
-                    format!("知らない `constraints` のキー `{key}`"),
+                    format!("unknown `constraints` key `{key}`"),
                 ));
                 continue;
             }
@@ -196,7 +196,7 @@ impl Config {
                     }
                     None => diags.push(Diagnostic::error(
                         span,
-                        format!("`{key}` は `true` か `false`"),
+                        format!("`{key}` takes `true` or `false`"),
                     )),
                 },
                 _ => match value_ident(&entry.value.value) {
@@ -209,7 +209,7 @@ impl Config {
                     }
                     _ => diags.push(Diagnostic::error(
                         span,
-                        format!("`{key}` は {} のいずれか", REFERENTIAL_ACTIONS.join(" / ")),
+                        format!("`{key}` expects one of {}", REFERENTIAL_ACTIONS.join(" / ")),
                     )),
                 },
             }
@@ -245,6 +245,6 @@ pub type Vars = HashMap<&'static str, Compound>;
 pub fn missing_var(span: Span, name: &str) -> Diagnostic {
     Diagnostic::error(
         span,
-        format!("テンプレート変数 `{name}` はここでは使えない"),
+        format!("template variable `{name}` is not available here"),
     )
 }

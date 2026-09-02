@@ -202,8 +202,8 @@ impl LanguageServer for Backend {
             Reference::Noun(n) => {
                 let (schema, _) = resolve(&a.doc, dialect::default());
                 match schema.table_by_noun(n) {
-                    Some(t) => format!("名詞 `{n}` → テーブル `{}`", t.name),
-                    None => format!("名詞 `{n}`"),
+                    Some(t) => format!("noun `{n}` -> table `{}`", t.name),
+                    None => format!("noun `{n}`"),
                 }
             }
         };
@@ -270,16 +270,16 @@ impl LanguageServer for Backend {
             });
         };
         for kw in STATEMENT_KEYWORDS {
-            push(kw, CompletionItemKind::KEYWORD, "宣言文");
+            push(kw, CompletionItemKind::KEYWORD, "statement");
         }
         for kw in BLOCK_KEYWORDS {
-            push(kw, CompletionItemKind::KEYWORD, "ブロック");
+            push(kw, CompletionItemKind::KEYWORD, "block");
         }
         for key in ATTR_KEYS {
-            push(key, CompletionItemKind::PROPERTY, "属性キー");
+            push(key, CompletionItemKind::PROPERTY, "attribute");
         }
         for ty in dialect::default().types {
-            push(ty, CompletionItemKind::TYPE_PARAMETER, "型");
+            push(ty, CompletionItemKind::TYPE_PARAMETER, "type");
         }
         for m in &a.doc.mixins {
             push(&m.name.value, CompletionItemKind::INTERFACE, "mixin");
@@ -289,7 +289,7 @@ impl LanguageServer for Backend {
         }
         if let Some(e) = &a.doc.nouns {
             for entry in &e.entries {
-                push(&entry.id.value, CompletionItemKind::CLASS, "名詞");
+                push(&entry.id.value, CompletionItemKind::CLASS, "noun");
             }
         }
         Ok(Some(CompletionResponse::Array(items)))

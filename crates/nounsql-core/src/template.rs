@@ -21,7 +21,7 @@ impl Template {
             text.push_str(&rest[..i]);
             let after = &rest[i + 2..];
             let Some(close) = after.find('}') else {
-                return Err("`${` が `}` で閉じられていない".into());
+                return Err("unterminated `${`; expected `}`".into());
             };
             if !text.is_empty() {
                 segments.push(Seg::Text(std::mem::take(&mut text)));
@@ -54,11 +54,11 @@ fn parse_expr(expr: &str) -> Result<Seg, String> {
         Some((func, rest)) => {
             let arg = rest
                 .strip_suffix(')')
-                .ok_or_else(|| format!("`{expr}` の括弧が閉じられていない"))?;
+                .ok_or_else(|| format!("unterminated `(` in `{expr}`"))?;
             let func = func.trim();
             if !matches!(func, "singular" | "plural" | "short" | "desc") {
                 return Err(format!(
-                    "テンプレートで使える関数は singular / plural / short / desc のみ。`{func}` は使えない"
+                    "unknown template function `{func}`; expected singular / plural / short / desc"
                 ));
             }
             Ok(Seg::Call {
@@ -68,7 +68,7 @@ fn parse_expr(expr: &str) -> Result<Seg, String> {
         }
         None => {
             if expr.is_empty() {
-                Err("`${}` が空".into())
+                Err("empty `${}`".into())
             } else {
                 Ok(Seg::Var(expr.into()))
             }
